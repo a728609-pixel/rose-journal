@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>迪士尼感恩收藏館</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- React & ReactDOM (Global) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Custom Scrollbar Hide */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    </style>
+</head>
+<body class="bg-[#FFFBF0]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        
+        // ==========================================
+        //  設定區 (請在此填入您的資料)
+        // ==========================================
+        
+        // 1. 請將您的 Google Gemini API Key 貼在下方引號中
+        const GEMINI_API_KEY = ""; 
+
+        // 2. (選填) 如果您有 Firebase 設定，請貼在下方；如果沒有，保持現狀即可使用「體驗模式」
+        // 體驗模式：可以抽公仔、看動畫，但重新整理網頁後資料會重置。
+        const firebaseConfig = {
+            // apiKey: "...",
+            // authDomain: "...",
+            // projectId: "...",
+            // ...
+        };
+
+        // ==========================================
+        //  Firebase 初始化邏輯 (自動判斷)
+        // ==========================================
+        let db = null;
+        let auth = null;
+        let user = null;
+
+        // 簡單的本地模擬 User (體驗模式用)
+        const demoUser = { uid: "guest_user", isAnonymous: true };
+
+        // 嘗試載入 Firebase (如果 config 有效)
+        const initFirebase = async () => {
+            if (firebaseConfig.apiKey) {
+                try {
+                    // 動態導入 Firebase SDK
+                    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+                    const { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                    const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+                    
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    return { auth, db, signInAnonymously, onAuthStateChanged, collection, addDoc, query, onSnapshot, serverTimestamp };
+                } catch (e) {
+                    console.warn("Firebase 初始化失敗，切換至體驗模式", e);
+                    return null;
+                }
+            }
+            return null;
+        };
+
+        // ==========================================
+        //  角色資料庫 (50+ 迪士尼角色)
+        // ==========================================
+        const CHAR_DATA = [
+            { id: 'mickey', name: '經典米奇', keywords: '快樂,開始,樂觀,領袖,經典', rarity: 'UR', base: '#000', face: '#fce7f3', body: '#ef4444', ears: 'round_black', acc: 'buttons' },
+            { id: 'minnie', name: '甜心米妮', keywords: '愛情,甜蜜,打扮,約會,蝴蝶結', rarity: 'SSR', base: '#000', face: '#fce7f3', body: '#ec4899', ears: 'round_black', acc: 'bow_red' },
+            { id: 'donald', name: '唐老鴨', keywords: '生氣,倒霉,堅持,努力,鴨子', rarity: 'SR', base: '#fff', face: '#fff', body: '#3b82f6', ears: 'none', acc: 'hat_sailor' },
+            { id: 'daisy', name: '黛西', keywords: '自信,時尚,愛美,脾氣,紫色', rarity: 'SR', base: '#fff', face: '#fff', body: '#a855f7', ears: 'none', acc: 'bow_pink' },
+            { id: 'goofy', name: '高飛', keywords: '傻氣,單純,搞笑,樂天,跌倒', rarity: 'R', base: '#000', face: '#fce7f3', body: '#f97316', ears: 'long_black', acc: 'hat_green' },
+            { id: 'pluto', name: '布鲁托', keywords: '忠誠,寵物,陪伴,直覺,狗狗', rarity: 'R', base: '#fbbf24', face: '#fbbf24', body: '#fbbf24', ears: 'long_black', acc: 'collar_green' },
+            { id: 'chip', name: '奇奇', keywords: '聰明,計畫,兄弟,忙碌,松鼠', rarity: 'R', base: '#78350f', face: '#fef3c7', body: '#78350f', ears: 'chip_ears', acc: 'nose_black' },
+            { id: 'dale', name: '蒂蒂', keywords: '傻呼呼,玩樂,放鬆,惡作劇,松鼠', rarity: 'R', base: '#92400e', face: '#fef3c7', body: '#92400e', ears: 'chip_ears', acc: 'nose_red' },
+            
+            { id: 'pooh', name: '維尼', keywords: '美食,蜂蜜,慵懶,友誼,黃色', rarity: 'SSR', base: '#fbbf24', face: '#fbbf24', body: '#ef4444', ears: 'round_yellow', acc: 'none' },
+            { id: 'piglet', name: '小豬', keywords: '膽小,勇敢,微小,溫柔,粉紅', rarity: 'R', base: '#fbcfe8', face: '#fbcfe8', body: '#db2777', ears: 'pointy_pink', acc: 'stripes' },
+            { id: 'tigger', name: '跳跳虎', keywords: '活力,跳躍,自信,獨一無二,橘色', rarity: 'SR', base: '#f97316', face: '#fef3c7', body: '#f97316', ears: 'round_orange', acc: 'stripes_black' },
+            { id: 'eeyore', name: '屹耳', keywords: '憂鬱,接受,慢活,低潮,灰色', rarity: 'R', base: '#64748b', face: '#cbd5e1', body: '#64748b', ears: 'long_droopy', acc: 'bow_tail' },
+
+            { id: 'stitch', name: '史迪奇', keywords: '家人,破壞,搞怪,外星人,藍色', rarity: 'UR', base: '#3b82f6', face: '#60a5fa', body: '#3b82f6', ears: 'stitch_ears', acc: 'teeth' },
+            { id: 'angel', name: '安琪', keywords: '魅力,歌聲,粉紅,戀愛,女朋友', rarity: 'SR', base: '#ec4899', face: '#f9a8d4', body: '#ec4899', ears: 'stitch_ears_pink', acc: 'antenna' },
+            
+            { id: 'woody', name: '胡迪', keywords: '責任,懷舊,領導,夥伴,牛仔', rarity: 'SSR', base: '#fef3c7', face: '#fef3c7', body: '#fbbf24', ears: 'none', acc: 'hat_cowboy' },
+            { id: 'buzz', name: '巴斯光年', keywords: '無限,超越,飛翔,科技,太空', rarity: 'SSR', base: '#fff', face: '#fce7f3', body: '#fff', ears: 'none', acc: 'helmet' },
+            { id: 'alien', name: '三眼怪', keywords: '團體,感激,驚喜,被選中,爪子', rarity: 'SR', base: '#84cc16', face: '#84cc16', body: '#3b82f6', ears: 'pointy_green', acc: 'three_eyes' },
+            { id: 'lotso', name: '熊抱哥', keywords: '草莓,擁抱,過去,複雜,粉紅熊', rarity: 'SSR', base: '#9d174d', face: '#fce7f3', body: '#be185d', ears: 'round_dark_pink', acc: 'cane' },
+            { id: 'hamm', name: '火腿豬', keywords: '存錢,現實,聰明,吐槽,小豬撲滿', rarity: 'R', base: '#fca5a5', face: '#fca5a5', body: '#fca5a5', ears: 'pointy_pink', acc: 'coin_slot' },
+            { id: 'rex', name: '抱抱龍', keywords: '焦慮,遊戲,恐龍,善良,綠色', rarity: 'R', base: '#22c55e', face: '#22c55e', body: '#22c55e', ears: 'none', acc: 'teeth' },
+
+            { id: 'sulley', name: '毛怪', keywords: '強壯,溫柔,保護,毛茸茸,藍色', rarity: 'SR', base: '#3b82f6', face: '#3b82f6', body: '#3b82f6', ears: 'horns', acc: 'spots_purple' },
+            { id: 'mike', name: '大眼仔', keywords: '樂觀,學習,觀察,目標,眼睛', rarity: 'SR', base: '#84cc16', face: '#84cc16', body: '#84cc16', ears: 'horns', acc: 'one_eye' },
+            { id: 'boo', name: '阿布', keywords: '純真,不怕,捉迷藏,可愛,小女孩', rarity: 'R', base: '#fce7f3', face: '#fce7f3', body: '#ec4899', ears: 'pigtails', acc: 'monster_costume' },
+
+            { id: 'elsa', name: '艾莎', keywords: '釋放,冰雪,獨立,女王,藍色', rarity: 'UR', base: '#e0f2fe', face: '#fce7f3', body: '#38bdf8', ears: 'braid_white', acc: 'crown_ice' },
+            { id: 'anna', name: '安娜', keywords: '熱情,活潑,姊妹,冒險,紫色', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#0ea5e9', ears: 'braids_brown', acc: 'cape_purple' },
+            { id: 'ariel', name: '愛麗兒', keywords: '好奇,歌聲,海洋,新世界,人魚', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#22c55e', ears: 'hair_red_long', acc: 'flower' },
+            { id: 'belle', name: '貝兒', keywords: '閱讀,玫瑰,內在美,夢想,黃色', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#fbbf24', ears: 'hair_brown_bun', acc: 'rose' },
+            { id: 'jasmine', name: '茉莉', keywords: '自由,老虎,星空,飛毯,異國', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#22d3ee', ears: 'hair_black_ponytail', acc: 'headband' },
+            { id: 'rapunzel', name: '樂佩', keywords: '畫畫,光芒,長髮,探索,紫色', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#d8b4fe', ears: 'hair_long_gold', acc: 'flowers_hair' },
+            { id: 'cinderella', name: '仙度瑞拉', keywords: '時間,南瓜,玻璃鞋,變身,藍色', rarity: 'SR', base: '#fce7f3', face: '#fce7f3', body: '#60a5fa', ears: 'hair_blonde_bun', acc: 'headband_blue' },
+            { id: 'snowwhite', name: '白雪公主', keywords: '蘋果,動物,許願,善良,黑髮', rarity: 'SR', base: '#fce7f3', face: '#fce7f3', body: '#fbbf24', ears: 'hair_black_bob', acc: 'bow_red_head' },
+
+            { id: 'baymax', name: '杯麵', keywords: '健康,療癒,照顧,擁抱,白色', rarity: 'SSR', base: '#fff', face: '#fff', body: '#fff', ears: 'none', acc: 'baymax_eyes' },
+            { id: 'simba', name: '辛巴', keywords: '成長,責任,王者,草原,獅子', rarity: 'SSR', base: '#fbbf24', face: '#fbbf24', body: '#fbbf24', ears: 'round_lion', acc: 'mane_red' },
+            { id: 'nemo', name: '尼莫', keywords: '大海,幸運,冒險,游泳,小丑魚', rarity: 'R', base: '#f97316', face: '#f97316', body: '#f97316', ears: 'fin_small', acc: 'stripes_white' },
+            { id: 'olaf', name: '雪寶', keywords: '夏天,擁抱,雪人,融化,快樂', rarity: 'SR', base: '#fff', face: '#fff', body: '#fff', ears: 'twig_hair', acc: 'carrot_nose' },
+            { id: 'genie', name: '精靈', keywords: '願望,魔法,自由,搞笑,藍色', rarity: 'SSR', base: '#3b82f6', face: '#3b82f6', body: '#3b82f6', ears: 'pointy_blue', acc: 'top_knot' },
+            { id: 'mulan', name: '木蘭', keywords: '榮耀,戰鬥,偽裝,倒影,女戰士', rarity: 'SR', base: '#fce7f3', face: '#fce7f3', body: '#16a34a', ears: 'hair_black_bun', acc: 'sword' },
+            { id: 'cheshire', name: '妙妙貓', keywords: '微笑,隱形,神秘,粉紅條紋,貓', rarity: 'SR', base: '#ec4899', face: '#ec4899', body: '#ec4899', ears: 'pointy_pink', acc: 'grin' },
+        ];
+
+        const CHAR_DEFINITIONS_TEXT = CHAR_DATA.map(c => `- ${c.id} (${c.name}): ${c.keywords}`).join('\n');
+
+        // ==========================================
+        //  SVG 元件 (公仔產生器)
+        // ==========================================
+        const UniversalToy = ({ config, className }) => {
+            if (!config) return null;
+            const { base, face, body, ears, acc } = config;
+
+            return (
+                <svg viewBox="0 0 100 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Stand */}
+                <ellipse cx="50" cy="105" rx="35" ry="12" fill="#e5e7eb" stroke="rgba(0,0,0,0.1)" strokeWidth="2" />
+                <path d="M15 105 L15 110 Q50 125 85 110 L85 105" fill="rgba(0,0,0,0.1)" />
+
+                {/* Ears Layer */}
+                {ears === 'round_black' && <><circle cx="25" cy="35" r="18" fill="#111" /><circle cx="75" cy="35" r="18" fill="#111" /></>}
+                {ears === 'round_yellow' && <><circle cx="30" cy="35" r="10" fill={base} /><circle cx="70" cy="35" r="10" fill={base} /></>}
+                {ears === 'long_black' && <><ellipse cx="30" cy="50" rx="8" ry="25" fill="#111" transform="rotate(-20 30 50)" /><ellipse cx="70" cy="50" rx="8" ry="25" fill="#111" transform="rotate(20 70 50)" /></>}
+                {ears === 'stitch_ears' && <><path d="M10 30 Q5 70 30 60" fill={base} stroke="#1e3a8a" strokeWidth="2" /><path d="M90 30 Q95 70 70 60" fill={base} stroke="#1e3a8a" strokeWidth="2" /></>}
+                {ears === 'stitch_ears_pink' && <><path d="M10 30 Q5 70 30 60" fill={base} stroke="#be185d" strokeWidth="2" /><path d="M90 30 Q95 70 70 60" fill={base} stroke="#be185d" strokeWidth="2" /></>}
+                {ears === 'pointy_pink' && <><path d="M35 25 L40 40 L30 40 Z" fill={body} /><path d="M65 25 L60 40 L70 40 Z" fill={body} /></>}
+                {ears === 'pointy_green' && <><path d="M35 25 L40 40 L30 40 Z" fill={base} /><path d="M65 25 L60 40 L70 40 Z" fill={base} /><line x1="50" y1="20" x2="50" y2="35" stroke={base} strokeWidth="3"/><circle cx="50" cy="20" r="4" fill={base}/></>}
+                {ears === 'hair_long_gold' && <path d="M30 40 Q10 80 20 100 L80 100 Q90 80 70 40" fill="#fcd34d" />}
+                {ears === 'hair_red_long' && <path d="M25 40 Q5 80 20 100 L80 100 Q95 80 75 40" fill="#dc2626" />}
+                {ears === 'chip_ears' && <><circle cx="30" cy="35" r="8" fill="#78350F" /><circle cx="70" cy="35" r="8" fill="#78350F" /></>}
+                {ears === 'horns' && <><path d="M30 35 L25 25" stroke="#C7D2FE" strokeWidth="4" strokeLinecap="round" /><path d="M70 35 L75 25" stroke="#C7D2FE" strokeWidth="4" strokeLinecap="round" /></>}
+                
+                {/* Body */}
+                <path d="M30 80 Q50 105 70 80 L70 100 Q50 115 30 100 Z" fill={body} />
+                
+                {/* Head */}
+                <circle cx="50" cy="60" r="28" fill={face} />
+                {(config.id === 'mickey' || config.id === 'minnie') && <path d="M50 85 Q25 85 30 60 Q30 45 40 45 Q50 60 60 45 Q70 45 70 60 Q75 85 50 85" fill={face} stroke="none" />}
+                {config.id === 'sulley' && <rect x="25" y="35" width="50" height="50" rx="15" fill={base} />}
+                
+                {/* Accessories */}
+                {acc === 'buttons' && <><ellipse cx="42" cy="92" rx="3" ry="5" fill="#FFF" /><ellipse cx="58" cy="92" rx="3" ry="5" fill="#FFF" /></>}
+                {acc === 'bow_red' && <><path d="M30 25 Q50 40 70 25 L65 45 Q50 35 35 45 Z" fill="#ef4444" /><circle cx="50" cy="35" r="5" fill="#ef4444" /></>}
+                {acc === 'bow_pink' && <><path d="M30 25 Q50 40 70 25 L65 45 Q50 35 35 45 Z" fill="#ec4899" /><circle cx="50" cy="35" r="5" fill="#ec4899" /></>}
+                {acc === 'hat_sailor' && <><path d="M30 30 L70 30 L65 20 L35 20 Z" fill="#3b82f6" /><ellipse cx="50" cy="65" rx="12" ry="6" fill="#f59e0b" /></>}
+                {acc === 'three_eyes' && <><circle cx="35" cy="55" r="5" fill="white"/><circle cx="35" cy="55" r="2" fill="black"/><circle cx="50" cy="50" r="5" fill="white"/><circle cx="50" cy="50" r="2" fill="black"/><circle cx="65" cy="55" r="5" fill="white"/><circle cx="65" cy="55" r="2" fill="black"/></>}
+                {acc === 'one_eye' && <><circle cx="50" cy="55" r="12" fill="white" stroke="#65a30d" strokeWidth="1"/><circle cx="50" cy="55" r="5" fill="#3b82f6"/><circle cx="50" cy="55" r="2" fill="black"/></>}
+                {acc === 'baymax_eyes' && <><line x1="42" y1="55" x2="58" y2="55" stroke="#111" strokeWidth="1.5" /><circle cx="42" cy="55" r="1.5" fill="#111" /><circle cx="58" cy="55" r="1.5" fill="#111" /></>}
+                {acc === 'crown_ice' && <path d="M35 35 L42 20 L50 30 L58 20 L65 35" fill="none" stroke="#38bdf8" strokeWidth="2" />}
+                {acc === 'teeth' && <path d="M40 70 Q50 75 60 70" fill="none" stroke="#1e3a8a" strokeWidth="2" />}
+                
+                {/* Standard Eyes */}
+                {!['three_eyes', 'one_eye', 'baymax_eyes'].includes(acc) && <><circle cx="40" cy="55" r="3" fill="#111" /><circle cx="60" cy="55" r="3" fill="#111" /></>}
+                </svg>
+            );
+        };
+
+        // ==========================================
+        //  主應用程式 Components
+        // ==========================================
+        
+        // [Icon Wrappers for Lucide to work in Standalone]
+        // This is where we use manual SVG paths to ensure stability without external module loaders
+        const SvgIcon = ({ path, size=24, className="", fill="none", stroke="currentColor" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+
+        const IconPaths = {
+            Heart: <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />,
+            Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />,
+            Star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+            X: <path d="M18 6 6 18M6 6l12 12" />,
+            Gift: <><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.9 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></>,
+            LayoutGrid: <><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></>,
+            Plus: <path d="M5 12h14M12 5v14" />,
+            Calendar: <><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></>,
+            Search: <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
+            Download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></>,
+            Sparkles: <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />,
+            Trophy: <><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></>
+        };
+
+        const App = () => {
+            const [entries, setEntries] = useState([]);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [newRewardItem, setNewRewardItem] = useState(null); 
+            const [newRewardSummary, setNewRewardSummary] = useState(''); 
+            const [showRewardModal, setShowRewardModal] = useState(false);
+            const [activeTab, setActiveTab] = useState('collection');
+            const [fbContext, setFbContext] = useState(null);
+
+            // 初始化與資料載入
+            useEffect(() => {
+                const startUp = async () => {
+                    // 如果有輸入 GEMINI API，可以在這做些檢查
+                    // 初始化 Firebase 或 使用 LocalStorage 體驗版
+                    const fb = await initFirebase();
+                    setFbContext(fb);
+
+                    if (fb) {
+                        // Firebase 模式
+                        const { auth, signInAnonymously, onAuthStateChanged, db, collection, query, onSnapshot, serverTimestamp } = fb;
+                        await signInAnonymously(auth);
+                        onAuthStateChanged(auth, (u) => {
+                            if (u) {
+                                const q = query(collection(db, 'artifacts', appId, 'users', u.uid, 'gratitude_entries'));
+                                onSnapshot(q, (snapshot) => {
+                                    const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate() || new Date() }));
+                                    fetched.sort((a, b) => b.createdAt - a.createdAt);
+                                    setEntries(fetched);
+                                });
+                            }
+                        });
+                    } else {
+                        // 體驗模式 (localStorage)
+                        const saved = localStorage.getItem('demo_entries');
+                        if (saved) {
+                            setEntries(JSON.parse(saved).map(e => ({...e, createdAt: new Date(e.createdAt)})));
+                        }
+                    }
+                };
+                startUp();
+            }, []);
+
+            // 新增日記
+            const handleAddEntry = async ({ rawPoints }) => {
+                const combinedText = rawPoints.join('\n');
+                
+                // 1. AI 處理
+                let aiResult = { summary: "魔法連線中...", characterId: 'mickey' };
+                if (GEMINI_API_KEY) {
+                    try {
+                        const response = await fetch(
+                            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`,
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{ parts: [{ text: `
+                                        你是一位迪士尼魔法嚮導。請閱讀日記，完成兩個任務：
+                                        1. summary: 寫一段80字以內的繁體中文短評，語氣溫馨、夢幻。
+                                        2. characterId: 從列表選出一個最能呼應情緒的角色ID。
+                                        
+                                        列表: ${CHAR_DATA.map(c => c.id + ':' + c.keywords).join(', ')}
+                                        日記: ${combinedText}
+                                        
+                                        回傳 JSON: { "summary": "...", "characterId": "..." }
+                                    ` }] }],
+                                    generationConfig: { responseMimeType: "application/json" }
+                                })
+                            }
+                        );
+                        const data = await response.json();
+                        aiResult = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text);
+                    } catch (e) {
+                        console.error("AI Error, using fallback", e);
+                        const random = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
+                        aiResult = { summary: "雖然魔法訊號微弱，但你的快樂我們收到了！", characterId: random.id };
+                    }
+                } else {
+                    // 無 API Key 的 Fallback
+                    const random = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
+                    aiResult = { summary: "記得去程式碼中填入 API Key 才能啟動完整的 AI 魔法喔！", characterId: random.id };
+                }
+
+                // 2. 儲存
+                const newEntry = {
+                    text: combinedText,
+                    summary: aiResult.summary,
+                    plantType: aiResult.characterId,
+                    createdAt: new Date(),
+                    dateString: new Date().toLocaleDateString('zh-TW')
+                };
+
+                if (fbContext) {
+                    const { db, collection, addDoc, serverTimestamp, auth } = fbContext;
+                    await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'gratitude_entries'), {
+                        ...newEntry,
+                        createdAt: serverTimestamp()
+                    });
+                } else {
+                    // Local Storage
+                    const updated = [newEntry, ...entries];
+                    setEntries(updated);
+                    localStorage.setItem('demo_entries', JSON.stringify(updated));
+                }
+
+                // 3. UI
+                setIsModalOpen(false);
+                setNewRewardItem(aiResult.characterId);
+                setNewRewardSummary(aiResult.summary);
+                setShowRewardModal(true);
+            };
+
+            return (
+                <div className="min-h-[100dvh] w-full bg-[#FFFBF0] text-[#374151] pb-24 relative flex flex-col">
+                    {/* Header */}
+                    <header className="px-6 pt-12 pb-2 sticky top-0 z-20 bg-[#FFFBF0]/90 backdrop-blur-md">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <div className="bg-[#F59E0B] p-1.5 rounded-lg text-white">
+                                    <SvgIcon path={IconPaths.Heart} size={16} fill="white" stroke="none" />
+                                </div>
+                                <div>
+                                    <h1 className="text-lg font-black text-[#78350F] leading-none">
+                                        {activeTab === 'collection' ? '迪士尼感恩收藏' : '冒險日誌'}
+                                    </h1>
+                                    <p className="text-[10px] font-bold text-[#B45309] mt-0.5 tracking-wide">
+                                        LEVEL {Math.floor(entries.length / 5) + 1} • {entries.length} TOYS
+                                    </p>
+                                </div>
+                            </div>
+                            <button className="bg-white p-2 rounded-full border-2 border-[#F3F4F6] shadow-sm text-[#9CA3AF]">
+                                <SvgIcon path={IconPaths.Settings} size={18} />
+                            </button>
+                        </div>
+                    </header>
+
+                    <main className="w-full max-w-lg mx-auto flex-1 px-4">
+                        {activeTab === 'collection' ? (
+                            <div>
+                                <DailyQuote />
+                                <div className="mt-6 flex justify-between items-end px-2 mb-4">
+                                    <h3 className="text-base font-black text-[#78350F]">我的玩具箱</h3>
+                                    <button className="text-xs font-bold text-[#F59E0B] flex items-center gap-1">
+                                        查看全部 <SvgIcon path={IconPaths.Search} size={12} />
+                                    </button>
+                                </div>
+                                
+                                {entries.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                                        <div className="bg-white p-6 rounded-3xl mb-4 shadow-sm border-2 border-[#F3F4F6]">
+                                            <div className="w-16 h-16 bg-[#FEF3C7] rounded-2xl flex items-center justify-center text-[#F59E0B]">
+                                                <SvgIcon path={IconPaths.LayoutGrid} size={32} />
+                                            </div>
+                                        </div>
+                                        <h3 className="text-xl font-black text-[#78350F] mb-2">收藏櫃還是空的</h3>
+                                        <p className="text-sm text-[#9CA3AF] font-bold">快去寫第一篇日記<br/>獲得你的第一個夥伴吧！</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-3 pb-24">
+                                        {entries.map((entry) => {
+                                            const itemData = CHAR_DATA.find(i => i.id === entry.plantType) || CHAR_DATA[0];
+                                            return (
+                                                <button key={entry.id || Math.random()} onClick={() => { setNewRewardItem(entry.plantType); setNewRewardSummary(entry.summary || entry.text); setShowRewardModal(true); }} 
+                                                    className="bg-white rounded-2xl p-2 pb-3 shadow-[0_4px_0_#E5E7EB] border-2 border-[#F3F4F6] flex flex-col items-center active:translate-y-1 active:shadow-none transition-all relative overflow-hidden group">
+                                                    <div className={`absolute top-0 left-0 w-full h-1 ${itemData.rarity === 'UR' ? 'bg-purple-400' : itemData.rarity === 'SSR' ? 'bg-yellow-400' : 'bg-blue-400'}`}></div>
+                                                    <div className="w-full aspect-square relative mb-2 flex items-center justify-center bg-[#FFFBEB] rounded-xl mt-1">
+                                                        <div className="w-[85%] h-[85%] transform group-hover:scale-110 transition-transform duration-300">
+                                                            <UniversalToy config={itemData} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center w-full">
+                                                        <h4 className="text-[10px] font-black text-[#78350F] truncate w-full px-1">{itemData.name}</h4>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            // 簡易行事曆視圖
+                            <div className="pt-6">
+                                <div className="bg-white rounded-[32px] p-6 shadow-sm border-2 border-[#F3F4F6] mb-6">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h2 className="text-xl font-black text-[#78350F]">{new Date().getFullYear()}年</h2>
+                                        <div className="bg-[#FEF3C7] text-[#D97706] text-xs font-bold px-3 py-1 rounded-full">全勤挑戰中</div>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2">
+                                        {Array.from({length: 30}, (_, i) => i + 1).map(d => (
+                                            <div key={d} className={`aspect-square rounded-xl flex items-center justify-center text-sm font-black border-2 bg-white border-[#F3F4F6] text-[#D1D5DB]`}>{d}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Bottom Navigation */}
+                    <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-6 pointer-events-none">
+                        <div className="bg-white border-2 border-[#F3F4F6] rounded-full p-2 pl-6 pr-6 flex items-center gap-12 shadow-[0_10px_30px_rgba(0,0,0,0.1)] pointer-events-auto">
+                           <button onClick={() => setActiveTab('collection')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'collection' ? 'text-[#F59E0B]' : 'text-[#D1D5DB]'}`}>
+                               <SvgIcon path={IconPaths.LayoutGrid} size={24} />
+                           </button>
+                           <div className="relative -top-8">
+                               <button onClick={() => setIsModalOpen(true)} className="w-16 h-16 bg-[#F59E0B] rounded-[24px] text-white shadow-[0_8px_0_#B45309] flex items-center justify-center transform transition-all active:shadow-none active:translate-y-2 border-4 border-white">
+                                   <SvgIcon path={IconPaths.Plus} size={32} />
+                               </button>
+                           </div>
+                           <button onClick={() => setActiveTab('calendar')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'calendar' ? 'text-[#F59E0B]' : 'text-[#D1D5DB]'}`}>
+                               <SvgIcon path={IconPaths.Calendar} size={24} />
+                           </button>
+                        </div>
+                    </div>
+
+                    {/* Write Modal */}
+                    {isModalOpen && <WriteModal onClose={() => setIsModalOpen(false)} onSubmit={handleAddEntry} />}
+                    
+                    {/* Reward Modal */}
+                    {showRewardModal && <DailyCardModal item={newRewardItem} summary={newRewardSummary} onClose={() => setShowRewardModal(false)} />}
+                </div>
+            );
+        };
+
+        // --- Sub-Components (定義在 App 外面以便閱讀) ---
+        const WriteModal = ({ onClose, onSubmit }) => {
+            const [points, setPoints] = useState(['', '', '', '', '']);
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const filledCount = points.filter(p => p.trim()).length;
+
+            const handleSubmit = () => {
+                if (filledCount === 0) return;
+                setIsSubmitting(true);
+                onSubmit({ rawPoints: points.filter(p => p.trim()) });
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+                    <div className="absolute inset-0 bg-[#78350F]/40 backdrop-blur-[2px] pointer-events-auto" onClick={onClose}></div>
+                    <div className="bg-[#FFFBF0] w-full max-w-lg sm:rounded-[40px] rounded-t-[40px] p-6 pointer-events-auto relative h-[90vh] flex flex-col shadow-2xl">
+                        {isSubmitting && (
+                            <div className="absolute inset-0 z-20 bg-white/95 rounded-[inherit] flex flex-col items-center justify-center p-8 text-center">
+                                <div className="w-20 h-20 bg-[#FEF3C7] rounded-full flex items-center justify-center mb-6 animate-bounce">
+                                    <SvgIcon path={IconPaths.Star} size={40} className="text-[#F59E0B] fill-[#F59E0B]" />
+                                </div>
+                                <h3 className="text-xl font-black text-[#78350F] mb-2">正在尋找你的守護夥伴...</h3>
+                            </div>
+                        )}
+                        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-[#F3F4F6] rounded-full z-10"><SvgIcon path={IconPaths.X} size={20} className="text-[#9CA3AF]" /></button>
+                        <div className="mb-6 mt-2 text-center">
+                            <h2 className="text-2xl font-black text-[#78350F]">今日的快樂碎片</h2>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+                            {points.map((p, i) => (
+                                <div key={i} className="relative">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#FDE68A] rounded-full flex items-center justify-center text-[#92400E] font-black text-sm border-2 border-[#FCD34D]">{i + 1}</div>
+                                    <input value={p} onChange={e => {const n=[...points]; n[i]=e.target.value; setPoints(n)}} className="w-full pl-16 pr-4 py-4 bg-white rounded-2xl border-2 border-[#F3F4F6] focus:border-[#FCD34D] text-[#78350F] font-bold" placeholder="今天發生了什麼好事？" />
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={handleSubmit} disabled={filledCount===0} className="w-full bg-[#F59E0B] text-white py-4 rounded-2xl font-black text-lg shadow-[0_4px_0_#B45309] mt-4 flex items-center justify-center gap-2">
+                            <SvgIcon path={IconPaths.Gift} size={20} /> 完成日記
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const DailyQuote = () => (
+            <div className="mx-4 mt-4 p-5 bg-[#FFFBEB] rounded-[24px] border-2 border-[#FCD34D] shadow-sm flex items-start gap-3">
+                <div className="bg-[#F59E0B] p-2 rounded-xl text-white"><SvgIcon path={IconPaths.Star} size={20} fill="currentColor" /></div>
+                <div>
+                    <p className="text-xs font-bold text-[#D97706] mb-1">今日魔法小語</p>
+                    <h3 className="text-[15px] font-bold text-[#78350F]">「只要你相信，夢想就會成真。」</h3>
+                </div>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
