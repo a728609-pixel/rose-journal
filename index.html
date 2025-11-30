@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>迪士尼感恩收藏館</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,53 +12,66 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
-        /* Custom Scrollbar Hide */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        input, textarea { font-size: 16px !important; }
+        
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(5%); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 2s infinite;
+        }
     </style>
 </head>
 <body class="bg-[#FFFBF0]">
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-        
-        // ==========================================
-        //  設定區 (請在此填入您的資料)
-        // ==========================================
-        
-        // 1. 請將您的 Google Gemini API Key 貼在下方引號中
-        const GEMINI_API_KEY = ""; 
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const root = document.getElementById('root');
+            // 只在嚴重崩潰時顯示錯誤
+            if (root && root.innerHTML === "") {
+                root.innerHTML = `<div style="padding: 20px; color: #78350F; text-align: center; margin-top: 50px;">
+                    <h3 style="font-size: 20px; font-weight: bold;">哎呀！魔法暫時失效了</h3>
+                    <p>請嘗試重新整理頁面</p>
+                    <p style="font-size: 12px; opacity: 0.7; margin-top: 10px;">${message}</p>
+                </div>`;
+            }
+        };
+    </script>
 
-        // 2. (選填) 如果您有 Firebase 設定，請貼在下方；如果沒有，保持現狀即可使用「體驗模式」
-        // 體驗模式：可以抽公仔、看動畫，但重新整理網頁後資料會重置。
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        
+        // ==========================================
+        //  設定區 (請在這裡填入 API Key)
+        // ==========================================
+        
+        // 👇👇👇 請將您的 API Key 貼在下方的引號中 👇👇👇
+        const GEMINI_API_KEY = "AIzaSyAWPp2gG3JO952AJ1XRvgbAUuGm3x0ByGI"; 
+        // 範例： const GEMINI_API_KEY = "AIzaSyD......";
+
+        // Firebase Config (選填)
         const firebaseConfig = {
             // apiKey: "...",
-            // authDomain: "...",
-            // projectId: "...",
-            // ...
         };
 
         // ==========================================
-        //  Firebase 初始化邏輯 (自動判斷)
+        //  Firebase 初始化
         // ==========================================
         let db = null;
         let auth = null;
-        let user = null;
 
-        // 簡單的本地模擬 User (體驗模式用)
-        const demoUser = { uid: "guest_user", isAnonymous: true };
-
-        // 嘗試載入 Firebase (如果 config 有效)
         const initFirebase = async () => {
             if (firebaseConfig.apiKey) {
                 try {
-                    // 動態導入 Firebase SDK
                     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
                     const { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
                     const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
@@ -69,7 +82,7 @@
                     
                     return { auth, db, signInAnonymously, onAuthStateChanged, collection, addDoc, query, onSnapshot, serverTimestamp };
                 } catch (e) {
-                    console.warn("Firebase 初始化失敗，切換至體驗模式", e);
+                    console.warn("Firebase 模式啟動失敗，將使用本地模式", e);
                     return null;
                 }
             }
@@ -77,7 +90,7 @@
         };
 
         // ==========================================
-        //  角色資料庫 (50+ 迪士尼角色)
+        //  角色資料庫
         // ==========================================
         const CHAR_DATA = [
             { id: 'mickey', name: '經典米奇', keywords: '快樂,開始,樂觀,領袖,經典', rarity: 'UR', base: '#000', face: '#fce7f3', body: '#ef4444', ears: 'round_black', acc: 'buttons' },
@@ -126,10 +139,8 @@
             { id: 'cheshire', name: '妙妙貓', keywords: '微笑,隱形,神秘,粉紅條紋,貓', rarity: 'SR', base: '#ec4899', face: '#ec4899', body: '#ec4899', ears: 'pointy_pink', acc: 'grin' },
         ];
 
-        const CHAR_DEFINITIONS_TEXT = CHAR_DATA.map(c => `- ${c.id} (${c.name}): ${c.keywords}`).join('\n');
-
         // ==========================================
-        //  SVG 元件 (公仔產生器)
+        //  SVG 元件
         // ==========================================
         const UniversalToy = ({ config, className }) => {
             if (!config) return null;
@@ -137,54 +148,54 @@
 
             return (
                 <svg viewBox="0 0 100 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Stand */}
                 <ellipse cx="50" cy="105" rx="35" ry="12" fill="#e5e7eb" stroke="rgba(0,0,0,0.1)" strokeWidth="2" />
                 <path d="M15 105 L15 110 Q50 125 85 110 L85 105" fill="rgba(0,0,0,0.1)" />
 
-                {/* Ears Layer */}
-                {ears === 'round_black' && <><circle cx="25" cy="35" r="18" fill="#111" /><circle cx="75" cy="35" r="18" fill="#111" /></>}
-                {ears === 'round_yellow' && <><circle cx="30" cy="35" r="10" fill={base} /><circle cx="70" cy="35" r="10" fill={base} /></>}
-                {ears === 'long_black' && <><ellipse cx="30" cy="50" rx="8" ry="25" fill="#111" transform="rotate(-20 30 50)" /><ellipse cx="70" cy="50" rx="8" ry="25" fill="#111" transform="rotate(20 70 50)" /></>}
-                {ears === 'stitch_ears' && <><path d="M10 30 Q5 70 30 60" fill={base} stroke="#1e3a8a" strokeWidth="2" /><path d="M90 30 Q95 70 70 60" fill={base} stroke="#1e3a8a" strokeWidth="2" /></>}
-                {ears === 'stitch_ears_pink' && <><path d="M10 30 Q5 70 30 60" fill={base} stroke="#be185d" strokeWidth="2" /><path d="M90 30 Q95 70 70 60" fill={base} stroke="#be185d" strokeWidth="2" /></>}
-                {ears === 'pointy_pink' && <><path d="M35 25 L40 40 L30 40 Z" fill={body} /><path d="M65 25 L60 40 L70 40 Z" fill={body} /></>}
-                {ears === 'pointy_green' && <><path d="M35 25 L40 40 L30 40 Z" fill={base} /><path d="M65 25 L60 40 L70 40 Z" fill={base} /><line x1="50" y1="20" x2="50" y2="35" stroke={base} strokeWidth="3"/><circle cx="50" cy="20" r="4" fill={base}/></>}
+                {/* Ears */}
+                {ears === 'round_black' && <g><circle cx="25" cy="35" r="18" fill="#111" /><circle cx="75" cy="35" r="18" fill="#111" /></g>}
+                {ears === 'round_yellow' && <g><circle cx="30" cy="35" r="10" fill={base} /><circle cx="70" cy="35" r="10" fill={base} /></g>}
+                {ears === 'long_black' && <g><ellipse cx="30" cy="50" rx="8" ry="25" fill="#111" transform="rotate(-20 30 50)" /><ellipse cx="70" cy="50" rx="8" ry="25" fill="#111" transform="rotate(20 70 50)" /></g>}
+                {ears === 'stitch_ears' && <g><path d="M10 30 Q5 70 30 60" fill={base} stroke="#1e3a8a" strokeWidth="2" /><path d="M90 30 Q95 70 70 60" fill={base} stroke="#1e3a8a" strokeWidth="2" /></g>}
+                {ears === 'stitch_ears_pink' && <g><path d="M10 30 Q5 70 30 60" fill={base} stroke="#be185d" strokeWidth="2" /><path d="M90 30 Q95 70 70 60" fill={base} stroke="#be185d" strokeWidth="2" /></g>}
+                {ears === 'pointy_pink' && <g><path d="M35 25 L40 40 L30 40 Z" fill={body} /><path d="M65 25 L60 40 L70 40 Z" fill={body} /></g>}
+                {ears === 'pointy_green' && <g><path d="M35 25 L40 40 L30 40 Z" fill={base} /><path d="M65 25 L60 40 L70 40 Z" fill={base} /><line x1="50" y1="20" x2="50" y2="35" stroke={base} strokeWidth="3"/><circle cx="50" cy="20" r="4" fill={base}/></g>}
                 {ears === 'hair_long_gold' && <path d="M30 40 Q10 80 20 100 L80 100 Q90 80 70 40" fill="#fcd34d" />}
                 {ears === 'hair_red_long' && <path d="M25 40 Q5 80 20 100 L80 100 Q95 80 75 40" fill="#dc2626" />}
-                {ears === 'chip_ears' && <><circle cx="30" cy="35" r="8" fill="#78350F" /><circle cx="70" cy="35" r="8" fill="#78350F" /></>}
-                {ears === 'horns' && <><path d="M30 35 L25 25" stroke="#C7D2FE" strokeWidth="4" strokeLinecap="round" /><path d="M70 35 L75 25" stroke="#C7D2FE" strokeWidth="4" strokeLinecap="round" /></>}
+                {ears === 'chip_ears' && <g><circle cx="30" cy="35" r="8" fill="#78350F" /><circle cx="70" cy="35" r="8" fill="#78350F" /></g>}
+                {ears === 'horns' && <g><path d="M30 35 L25 25" stroke="#C7D2FE" strokeWidth="4" strokeLinecap="round" /><path d="M70 35 L75 25" stroke="#C7D2FE" strokeWidth="4" strokeLinecap="round" /></g>}
+                {ears === 'fin_small' && <g><path d="M10 60 L30 50 L30 70 Z" fill={body}/></g>}
+                {ears === 'fin_blue' && <g><path d="M10 50 L30 40 L30 70 Z" fill={body}/></g>}
+                {ears === 'twig_hair' && <g><path d="M50 20 L50 35 M45 25 L50 35 M55 25 L50 35" stroke="#8b4513" strokeWidth="2"/></g>}
                 
-                {/* Body */}
+                {/* Body & Head */}
                 <path d="M30 80 Q50 105 70 80 L70 100 Q50 115 30 100 Z" fill={body} />
-                
-                {/* Head */}
                 <circle cx="50" cy="60" r="28" fill={face} />
+                
                 {(config.id === 'mickey' || config.id === 'minnie') && <path d="M50 85 Q25 85 30 60 Q30 45 40 45 Q50 60 60 45 Q70 45 70 60 Q75 85 50 85" fill={face} stroke="none" />}
                 {config.id === 'sulley' && <rect x="25" y="35" width="50" height="50" rx="15" fill={base} />}
                 
                 {/* Accessories */}
-                {acc === 'buttons' && <><ellipse cx="42" cy="92" rx="3" ry="5" fill="#FFF" /><ellipse cx="58" cy="92" rx="3" ry="5" fill="#FFF" /></>}
-                {acc === 'bow_red' && <><path d="M30 25 Q50 40 70 25 L65 45 Q50 35 35 45 Z" fill="#ef4444" /><circle cx="50" cy="35" r="5" fill="#ef4444" /></>}
-                {acc === 'bow_pink' && <><path d="M30 25 Q50 40 70 25 L65 45 Q50 35 35 45 Z" fill="#ec4899" /><circle cx="50" cy="35" r="5" fill="#ec4899" /></>}
-                {acc === 'hat_sailor' && <><path d="M30 30 L70 30 L65 20 L35 20 Z" fill="#3b82f6" /><ellipse cx="50" cy="65" rx="12" ry="6" fill="#f59e0b" /></>}
-                {acc === 'three_eyes' && <><circle cx="35" cy="55" r="5" fill="white"/><circle cx="35" cy="55" r="2" fill="black"/><circle cx="50" cy="50" r="5" fill="white"/><circle cx="50" cy="50" r="2" fill="black"/><circle cx="65" cy="55" r="5" fill="white"/><circle cx="65" cy="55" r="2" fill="black"/></>}
-                {acc === 'one_eye' && <><circle cx="50" cy="55" r="12" fill="white" stroke="#65a30d" strokeWidth="1"/><circle cx="50" cy="55" r="5" fill="#3b82f6"/><circle cx="50" cy="55" r="2" fill="black"/></>}
-                {acc === 'baymax_eyes' && <><line x1="42" y1="55" x2="58" y2="55" stroke="#111" strokeWidth="1.5" /><circle cx="42" cy="55" r="1.5" fill="#111" /><circle cx="58" cy="55" r="1.5" fill="#111" /></>}
+                {acc === 'buttons' && <g><ellipse cx="42" cy="92" rx="3" ry="5" fill="#FFF" /><ellipse cx="58" cy="92" rx="3" ry="5" fill="#FFF" /></g>}
+                {acc === 'bow_red' && <g><path d="M30 25 Q50 40 70 25 L65 45 Q50 35 35 45 Z" fill="#ef4444" /><circle cx="50" cy="35" r="5" fill="#ef4444" /></g>}
+                {acc === 'bow_pink' && <g><path d="M30 25 Q50 40 70 25 L65 45 Q50 35 35 45 Z" fill="#ec4899" /><circle cx="50" cy="35" r="5" fill="#ec4899" /></g>}
+                {acc === 'bow_red_head' && <g><path d="M30 25 Q50 40 70 25 L65 45 Q50 35 35 45 Z" fill="#ef4444" /><circle cx="50" cy="35" r="5" fill="#ef4444" /></g>}
+                {acc === 'hat_sailor' && <g><path d="M30 30 L70 30 L65 20 L35 20 Z" fill="#3b82f6" /><ellipse cx="50" cy="65" rx="12" ry="6" fill="#f59e0b" /></g>}
+                {acc === 'three_eyes' && <g><circle cx="35" cy="55" r="5" fill="white"/><circle cx="35" cy="55" r="2" fill="black"/><circle cx="50" cy="50" r="5" fill="white"/><circle cx="50" cy="50" r="2" fill="black"/><circle cx="65" cy="55" r="5" fill="white"/><circle cx="65" cy="55" r="2" fill="black"/></g>}
+                {acc === 'one_eye' && <g><circle cx="50" cy="55" r="12" fill="white" stroke="#65a30d" strokeWidth="1"/><circle cx="50" cy="55" r="5" fill="#3b82f6"/><circle cx="50" cy="55" r="2" fill="black"/></g>}
+                {acc === 'baymax_eyes' && <g><line x1="42" y1="55" x2="58" y2="55" stroke="#111" strokeWidth="1.5" /><circle cx="42" cy="55" r="1.5" fill="#111" /><circle cx="58" cy="55" r="1.5" fill="#111" /></g>}
                 {acc === 'crown_ice' && <path d="M35 35 L42 20 L50 30 L58 20 L65 35" fill="none" stroke="#38bdf8" strokeWidth="2" />}
                 {acc === 'teeth' && <path d="M40 70 Q50 75 60 70" fill="none" stroke="#1e3a8a" strokeWidth="2" />}
+                {acc === 'carrot_nose' && <polygon points="50,60 50,65 70,68" fill="#f97316" />}
                 
-                {/* Standard Eyes */}
-                {!['three_eyes', 'one_eye', 'baymax_eyes'].includes(acc) && <><circle cx="40" cy="55" r="3" fill="#111" /><circle cx="60" cy="55" r="3" fill="#111" /></>}
+                {/* Standard Eyes (fallback) */}
+                {!['three_eyes', 'one_eye', 'baymax_eyes'].includes(acc) && <g><circle cx="40" cy="55" r="3" fill="#111" /><circle cx="60" cy="55" r="3" fill="#111" /></g>}
                 </svg>
             );
         };
 
         // ==========================================
-        //  主應用程式 Components
+        //  SVG Icons
         // ==========================================
-        
-        // [Icon Wrappers for Lucide to work in Standalone]
-        // This is where we use manual SVG paths to ensure stability without external module loaders
         const SvgIcon = ({ path, size=24, className="", fill="none", stroke="currentColor" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 {path}
@@ -196,14 +207,14 @@
             Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />,
             Star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
             X: <path d="M18 6 6 18M6 6l12 12" />,
-            Gift: <><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.9 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></>,
-            LayoutGrid: <><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></>,
+            Gift: <g><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.9 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></g>,
+            LayoutGrid: <g><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></g>,
             Plus: <path d="M5 12h14M12 5v14" />,
-            Calendar: <><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></>,
-            Search: <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
-            Download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></>,
+            Calendar: <g><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></g>,
+            Search: <g><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></g>,
+            Download: <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></g>,
             Sparkles: <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />,
-            Trophy: <><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></>
+            Trophy: <g><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></g>
         };
 
         const App = () => {
@@ -215,30 +226,34 @@
             const [activeTab, setActiveTab] = useState('collection');
             const [fbContext, setFbContext] = useState(null);
 
-            // 初始化與資料載入
+            // 當前時間，用於月曆
+            const today = new Date();
+            const [currentDate, setCurrentDate] = useState(today);
+
             useEffect(() => {
                 const startUp = async () => {
-                    // 如果有輸入 GEMINI API，可以在這做些檢查
-                    // 初始化 Firebase 或 使用 LocalStorage 體驗版
                     const fb = await initFirebase();
                     setFbContext(fb);
 
                     if (fb) {
-                        // Firebase 模式
-                        const { auth, signInAnonymously, onAuthStateChanged, db, collection, query, onSnapshot, serverTimestamp } = fb;
+                        const { auth, signInAnonymously, onAuthStateChanged, db, collection, query, onSnapshot } = fb;
                         await signInAnonymously(auth);
                         onAuthStateChanged(auth, (u) => {
                             if (u) {
-                                const q = query(collection(db, 'artifacts', appId, 'users', u.uid, 'gratitude_entries'));
+                                const q = query(collection(db, 'artifacts', 'default-app-id', 'users', u.uid, 'gratitude_entries'));
                                 onSnapshot(q, (snapshot) => {
-                                    const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate() || new Date() }));
+                                    const fetched = snapshot.docs.map(doc => {
+                                        const d = doc.data();
+                                        // 處理 Timestamp 轉換
+                                        const createdAt = d.createdAt?.toDate ? d.createdAt.toDate() : new Date(d.createdAt);
+                                        return { id: doc.id, ...d, createdAt };
+                                    });
                                     fetched.sort((a, b) => b.createdAt - a.createdAt);
                                     setEntries(fetched);
                                 });
                             }
                         });
                     } else {
-                        // 體驗模式 (localStorage)
                         const saved = localStorage.getItem('demo_entries');
                         if (saved) {
                             setEntries(JSON.parse(saved).map(e => ({...e, createdAt: new Date(e.createdAt)})));
@@ -248,12 +263,11 @@
                 startUp();
             }, []);
 
-            // 新增日記
             const handleAddEntry = async ({ rawPoints }) => {
                 const combinedText = rawPoints.join('\n');
-                
-                // 1. AI 處理
                 let aiResult = { summary: "魔法連線中...", characterId: 'mickey' };
+                const getRandomChar = () => CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)].id;
+
                 if (GEMINI_API_KEY) {
                     try {
                         const response = await fetch(
@@ -270,26 +284,32 @@
                                         列表: ${CHAR_DATA.map(c => c.id + ':' + c.keywords).join(', ')}
                                         日記: ${combinedText}
                                         
-                                        回傳 JSON: { "summary": "...", "characterId": "..." }
+                                        回傳 JSON 格式，請確保是合法的 JSON，不要有 markdown 標記: { "summary": "...", "characterId": "..." }
                                     ` }] }],
                                     generationConfig: { responseMimeType: "application/json" }
                                 })
                             }
                         );
+                        
+                        if (!response.ok) throw new Error("API Error");
                         const data = await response.json();
-                        aiResult = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text);
+                        let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+                        rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                        
+                        const parsed = JSON.parse(rawText);
+                        aiResult = {
+                            summary: parsed.summary || "魔法已經收到你的心意！",
+                            characterId: parsed.characterId || getRandomChar()
+                        };
+
                     } catch (e) {
-                        console.error("AI Error, using fallback", e);
-                        const random = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
-                        aiResult = { summary: "雖然魔法訊號微弱，但你的快樂我們收到了！", characterId: random.id };
+                        console.error("AI Error", e);
+                        aiResult = { summary: "雖然魔法訊號微弱，但你的快樂我們收到了！", characterId: getRandomChar() };
                     }
                 } else {
-                    // 無 API Key 的 Fallback
-                    const random = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)];
-                    aiResult = { summary: "記得去程式碼中填入 API Key 才能啟動完整的 AI 魔法喔！", characterId: random.id };
+                    aiResult = { summary: "記得填入 API Key 才能啟動完整的魔法喔！", characterId: getRandomChar() };
                 }
 
-                // 2. 儲存
                 const newEntry = {
                     text: combinedText,
                     summary: aiResult.summary,
@@ -300,27 +320,47 @@
 
                 if (fbContext) {
                     const { db, collection, addDoc, serverTimestamp, auth } = fbContext;
-                    await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'gratitude_entries'), {
-                        ...newEntry,
-                        createdAt: serverTimestamp()
-                    });
+                    try {
+                        await addDoc(collection(db, 'artifacts', 'default-app-id', 'users', auth.currentUser.uid, 'gratitude_entries'), {
+                            ...newEntry,
+                            createdAt: serverTimestamp()
+                        });
+                    } catch(e) { console.error("Save error", e); }
                 } else {
-                    // Local Storage
                     const updated = [newEntry, ...entries];
                     setEntries(updated);
                     localStorage.setItem('demo_entries', JSON.stringify(updated));
                 }
 
-                // 3. UI
-                setIsModalOpen(false);
-                setNewRewardItem(aiResult.characterId);
-                setNewRewardSummary(aiResult.summary);
-                setShowRewardModal(true);
+                return aiResult; 
+            };
+
+            // 月曆計算邏輯
+            const calendarData = useMemo(() => {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth(); // 0-11
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const firstDay = new Date(year, month, 1).getDay(); // 0(Sun) - 6(Sat)
+                
+                // 找出這個月有寫日記的日期
+                const activeDays = new Set();
+                entries.forEach(e => {
+                    const d = new Date(e.createdAt);
+                    if (d.getFullYear() === year && d.getMonth() === month) {
+                        activeDays.add(d.getDate());
+                    }
+                });
+
+                return { year, month, daysInMonth, firstDay, activeDays };
+            }, [currentDate, entries]);
+
+            const changeMonth = (offset) => {
+                const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
+                setCurrentDate(newDate);
             };
 
             return (
                 <div className="min-h-[100dvh] w-full bg-[#FFFBF0] text-[#374151] pb-24 relative flex flex-col">
-                    {/* Header */}
                     <header className="px-6 pt-12 pb-2 sticky top-0 z-20 bg-[#FFFBF0]/90 backdrop-blur-md">
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
@@ -386,24 +426,50 @@
                                 )}
                             </div>
                         ) : (
-                            // 簡易行事曆視圖
+                            // 真實月曆視圖 (已修復)
                             <div className="pt-6">
                                 <div className="bg-white rounded-[32px] p-6 shadow-sm border-2 border-[#F3F4F6] mb-6">
                                     <div className="flex justify-between items-center mb-6">
-                                        <h2 className="text-xl font-black text-[#78350F]">{new Date().getFullYear()}年</h2>
-                                        <div className="bg-[#FEF3C7] text-[#D97706] text-xs font-bold px-3 py-1 rounded-full">全勤挑戰中</div>
+                                        <button onClick={() => changeMonth(-1)} className="p-2 bg-[#F3F4F6] rounded-full text-[#9CA3AF]">&lt;</button>
+                                        <h2 className="text-xl font-black text-[#78350F]">
+                                            {calendarData.year}年 {calendarData.month + 1}月
+                                        </h2>
+                                        <button onClick={() => changeMonth(1)} className="p-2 bg-[#F3F4F6] rounded-full text-[#9CA3AF]">&gt;</button>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-[#9CA3AF]">
+                                        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
                                     </div>
                                     <div className="grid grid-cols-7 gap-2">
-                                        {Array.from({length: 30}, (_, i) => i + 1).map(d => (
-                                            <div key={d} className={`aspect-square rounded-xl flex items-center justify-center text-sm font-black border-2 bg-white border-[#F3F4F6] text-[#D1D5DB]`}>{d}</div>
-                                        ))}
+                                        {/* 空白填充 */}
+                                        {Array.from({length: calendarData.firstDay}).map((_, i) => <div key={`empty-${i}`} />)}
+                                        {/* 日期 */}
+                                        {Array.from({length: calendarData.daysInMonth}, (_, i) => i + 1).map(d => {
+                                            const isActive = calendarData.activeDays.has(d);
+                                            return (
+                                                <div key={d} className={`aspect-square rounded-xl flex items-center justify-center text-sm font-black border-2 
+                                                    ${isActive 
+                                                        ? 'bg-[#F59E0B] border-[#D97706] text-white shadow-[0_2px_0_#B45309]' 
+                                                        : 'bg-white border-[#F3F4F6] text-[#D1D5DB]'
+                                                    }`}>
+                                                    {d}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                                <div className="bg-[#FFF7ED] rounded-[32px] p-6 border-2 border-[#FED7AA] flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-[#FFEDD5] rounded-full flex items-center justify-center text-[#F97316]">
+                                        <SvgIcon path={IconPaths.Trophy} size={24} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-[#F97316] mb-0.5">本月挑戰</p>
+                                        <p className="text-xl font-black text-[#9A3412]">已達成 {calendarData.activeDays.size} 天</p>
                                     </div>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    {/* Bottom Navigation */}
                     <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-6 pointer-events-none">
                         <div className="bg-white border-2 border-[#F3F4F6] rounded-full p-2 pl-6 pr-6 flex items-center gap-12 shadow-[0_10px_30px_rgba(0,0,0,0.1)] pointer-events-auto">
                            <button onClick={() => setActiveTab('collection')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'collection' ? 'text-[#F59E0B]' : 'text-[#D1D5DB]'}`}>
@@ -420,40 +486,59 @@
                         </div>
                     </div>
 
-                    {/* Write Modal */}
-                    {isModalOpen && <WriteModal onClose={() => setIsModalOpen(false)} onSubmit={handleAddEntry} />}
+                    {isModalOpen && <WriteModal onClose={() => setIsModalOpen(false)} onSubmit={handleAddEntry} 
+                        onSuccess={(res) => {
+                            setNewRewardItem(res.characterId);
+                            setNewRewardSummary(res.summary);
+                            setShowRewardModal(true);
+                        }}
+                    />}
                     
-                    {/* Reward Modal */}
                     {showRewardModal && <DailyCardModal item={newRewardItem} summary={newRewardSummary} onClose={() => setShowRewardModal(false)} />}
                 </div>
             );
         };
 
-        // --- Sub-Components (定義在 App 外面以便閱讀) ---
-        const WriteModal = ({ onClose, onSubmit }) => {
+        const WriteModal = ({ onClose, onSubmit, onSuccess }) => {
             const [points, setPoints] = useState(['', '', '', '', '']);
             const [isSubmitting, setIsSubmitting] = useState(false);
             const filledCount = points.filter(p => p.trim()).length;
 
-            const handleSubmit = () => {
+            const handleSubmit = async () => {
                 if (filledCount === 0) return;
                 setIsSubmitting(true);
-                onSubmit({ rawPoints: points.filter(p => p.trim()) });
+                try {
+                    const rawPoints = points.filter(p => p.trim());
+                    const result = await onSubmit({ rawPoints });
+                    setPoints(['', '', '', '', '']); 
+                    if(result) {
+                        onClose();
+                        onSuccess(result);
+                    }
+                } catch(e) {
+                    console.error(e);
+                    // 錯誤處理：如果失敗，顯示一個隨機角色
+                    const randomChar = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)].id;
+                    onClose();
+                    onSuccess({ summary: "網路訊號有點微弱，但你的心意傳達到了！", characterId: randomChar });
+                } finally {
+                    setIsSubmitting(false);
+                }
             };
 
             return (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-                    <div className="absolute inset-0 bg-[#78350F]/40 backdrop-blur-[2px] pointer-events-auto" onClick={onClose}></div>
-                    <div className="bg-[#FFFBF0] w-full max-w-lg sm:rounded-[40px] rounded-t-[40px] p-6 pointer-events-auto relative h-[90vh] flex flex-col shadow-2xl">
+                    <div className="absolute inset-0 bg-[#78350F]/40 backdrop-blur-[2px] pointer-events-auto" onClick={!isSubmitting ? onClose : undefined}></div>
+                    <div className="bg-[#FFFBF0] w-full max-w-lg sm:rounded-[40px] rounded-t-[40px] p-6 pointer-events-auto relative h-[85vh] flex flex-col shadow-2xl">
                         {isSubmitting && (
                             <div className="absolute inset-0 z-20 bg-white/95 rounded-[inherit] flex flex-col items-center justify-center p-8 text-center">
-                                <div className="w-20 h-20 bg-[#FEF3C7] rounded-full flex items-center justify-center mb-6 animate-bounce">
+                                <div className="w-20 h-20 bg-[#FEF3C7] rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
                                     <SvgIcon path={IconPaths.Star} size={40} className="text-[#F59E0B] fill-[#F59E0B]" />
                                 </div>
                                 <h3 className="text-xl font-black text-[#78350F] mb-2">正在尋找你的守護夥伴...</h3>
                             </div>
                         )}
-                        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-[#F3F4F6] rounded-full z-10"><SvgIcon path={IconPaths.X} size={20} className="text-[#9CA3AF]" /></button>
+                        <button onClick={onClose} disabled={isSubmitting} className="absolute top-6 right-6 p-2 bg-[#F3F4F6] rounded-full z-10"><SvgIcon path={IconPaths.X} size={20} className="text-[#9CA3AF]" /></button>
                         <div className="mb-6 mt-2 text-center">
                             <h2 className="text-2xl font-black text-[#78350F]">今日的快樂碎片</h2>
                         </div>
@@ -461,13 +546,70 @@
                             {points.map((p, i) => (
                                 <div key={i} className="relative">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#FDE68A] rounded-full flex items-center justify-center text-[#92400E] font-black text-sm border-2 border-[#FCD34D]">{i + 1}</div>
-                                    <input value={p} onChange={e => {const n=[...points]; n[i]=e.target.value; setPoints(n)}} className="w-full pl-16 pr-4 py-4 bg-white rounded-2xl border-2 border-[#F3F4F6] focus:border-[#FCD34D] text-[#78350F] font-bold" placeholder="今天發生了什麼好事？" />
+                                    <input value={p} onChange={e => {const n=[...points]; n[i]=e.target.value; setPoints(n)}} disabled={isSubmitting} className="w-full pl-16 pr-4 py-4 bg-white rounded-2xl border-2 border-[#F3F4F6] focus:border-[#FCD34D] text-[#78350F] font-bold" placeholder="今天發生了什麼好事？" />
                                 </div>
                             ))}
                         </div>
-                        <button onClick={handleSubmit} disabled={filledCount===0} className="w-full bg-[#F59E0B] text-white py-4 rounded-2xl font-black text-lg shadow-[0_4px_0_#B45309] mt-4 flex items-center justify-center gap-2">
-                            <SvgIcon path={IconPaths.Gift} size={20} /> 完成日記
+                        <button onClick={handleSubmit} disabled={filledCount===0 || isSubmitting} className="w-full bg-[#F59E0B] text-white py-4 rounded-2xl font-black text-lg shadow-[0_4px_0_#B45309] mt-4 flex items-center justify-center gap-2 mb-8 sm:mb-0">
+                            <SvgIcon path={IconPaths.Gift} size={20} /> {isSubmitting ? '魔法詠唱中...' : '完成日記'}
                         </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const DailyCardModal = ({ item, summary, onClose }) => {
+            if (!item) return null;
+            const itemData = CHAR_DATA.find(i => i.id === item) || CHAR_DATA[0];
+            const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            const rarityColors = {
+                'UR': 'bg-gradient-to-tr from-purple-500 to-indigo-500',
+                'SSR': 'bg-gradient-to-tr from-yellow-400 to-orange-500',
+                'SR': 'bg-gradient-to-tr from-blue-400 to-cyan-500',
+                'R': 'bg-gradient-to-tr from-green-400 to-emerald-500',
+            };
+            const rarityBg = rarityColors[itemData.rarity] || rarityColors['R'];
+
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+                    <div className="bg-[#FFFBF0] w-full max-w-sm rounded-[32px] overflow-hidden relative z-10 animate-in zoom-in-95 duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-4 border-white ring-4 ring-[#FDE68A]">
+                        <div className={`h-72 relative flex items-center justify-center p-6 shrink-0 bg-[#FFF7ED] overflow-hidden`}>
+                             <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(#F59E0B 2px, transparent 2px)', backgroundSize: '20px 20px'}}></div>
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-white/60 to-transparent pointer-events-none"></div>
+                             <div className="w-56 h-56 drop-shadow-2xl animate-in zoom-in duration-700 delay-150 relative z-10 transform hover:scale-105 transition-transform duration-300">
+                                <UniversalToy config={itemData} />
+                             </div>
+                             <div className="absolute top-4 right-4">
+                                <span className={`px-3 py-1 rounded-full text-xs font-black italic shadow-lg text-white ${rarityBg} border-2 border-white`}>
+                                    {itemData.rarity}
+                                </span>
+                             </div>
+                        </div>
+                        <div className="p-6 flex-1 overflow-y-auto bg-white relative rounded-t-[32px] -mt-6 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                             <div className="text-center mb-6">
+                                 <div className="inline-block px-3 py-1 bg-[#FEF3C7] text-[#D97706] text-[10px] font-bold rounded-full mb-2">NEW FRIEND!</div>
+                                 <h2 className="text-2xl font-black text-[#78350F] mb-1">{itemData.name}</h2>
+                                 <p className="text-xs text-[#92400E] font-medium">{todayStr}</p>
+                             </div>
+                             <div className="bg-[#FFFBEB] p-5 rounded-2xl border border-[#FDE68A]">
+                                 <div className="flex items-start gap-2">
+                                    <SvgIcon path={IconPaths.Sparkles} size={16} className="text-[#F59E0B] shrink-0 mt-1" />
+                                    <p className="text-[#92400E] leading-relaxed font-bold text-justify text-sm">
+                                        {summary}
+                                    </p>
+                                 </div>
+                             </div>
+                        </div>
+                        <div className="p-4 bg-white border-t border-[#F3F4F6] grid grid-cols-2 gap-3 shrink-0">
+                             <button onClick={onClose} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#F3F4F6] text-[#6B7280] font-bold text-sm hover:bg-[#E5E7EB] transition-colors">
+                                 <SvgIcon path={IconPaths.Download} size={18} /> 保存
+                             </button>
+                             <button onClick={onClose} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#F59E0B] text-white font-bold text-sm hover:bg-[#D97706] transition-colors shadow-[0_4px_0_#B45309] active:shadow-none active:translate-y-1">
+                                 <SvgIcon path={IconPaths.Gift} size={18} /> 收入收藏櫃
+                             </button>
+                        </div>
                     </div>
                 </div>
             );
