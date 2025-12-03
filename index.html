@@ -132,7 +132,8 @@
 
             { id: 'baymax', name: '杯麵', keywords: '健康,療癒,照顧,擁抱,白色', rarity: 'SSR', base: '#fff', face: '#fff', body: '#fff', ears: 'none', acc: 'baymax_eyes' },
             { id: 'simba', name: '辛巴', keywords: '成長,責任,王者,草原,獅子', rarity: 'SSR', base: '#fbbf24', face: '#fbbf24', body: '#fbbf24', ears: 'round_lion', acc: 'mane_red' },
-            { id: 'nemo', name: '尼莫', keywords: '大海,幸運,冒險,游泳,小丑魚', rarity: 'R', base: '#f97316', face: '#f97316', body: '#f97316', ears: 'fin_small', acc: 'stripes_white' },
+            { id: 'nemo', name: '尼莫', keywords: '大海,幸運,冒險,游泳,小丑魚', rarity: 'R', base: '#f97316', face: '#f97316', body: '#f97316', ears: 'nemo_fins', acc: 'nemo_stripes' },
+            { id: 'dory', name: '多莉', keywords: '健忘,快樂,前進,鯨魚語', rarity: 'R', base: '#3b82f6', face: '#3b82f6', body: '#3b82f6', ears: 'fin_blue', acc: 'yellow_tail' },
             { id: 'olaf', name: '雪寶', keywords: '夏天,擁抱,雪人,融化,快樂', rarity: 'SR', base: '#fff', face: '#fff', body: '#fff', ears: 'twig_hair', acc: 'carrot_nose' },
             { id: 'genie', name: '精靈', keywords: '願望,魔法,自由,搞笑,藍色', rarity: 'SSR', base: '#3b82f6', face: '#3b82f6', body: '#3b82f6', ears: 'pointy_blue', acc: 'top_knot' },
             { id: 'mulan', name: '木蘭', keywords: '榮耀,戰鬥,偽裝,倒影,女戰士', rarity: 'SR', base: '#fce7f3', face: '#fce7f3', body: '#16a34a', ears: 'hair_black_bun', acc: 'sword' },
@@ -140,8 +141,32 @@
         ];
 
         // ==========================================
-        //  SVG 元件
+        //  3. 元件定義 (先定義，後使用)
         // ==========================================
+        
+        // SVG 圖示路徑
+        const SvgIcon = ({ path, size=24, className="", fill="none", stroke="currentColor" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+
+        const IconPaths = {
+            Heart: <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />,
+            Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />,
+            Star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+            X: <path d="M18 6 6 18M6 6l12 12" />,
+            Gift: <g><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.9 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></g>,
+            LayoutGrid: <g><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></g>,
+            Plus: <path d="M5 12h14M12 5v14" />,
+            Calendar: <g><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></g>,
+            Search: <g><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></g>,
+            Download: <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></g>,
+            Sparkles: <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />,
+            Trophy: <g><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></g>
+        };
+
+        // 公仔 SVG 產生器
         const UniversalToy = ({ config, className }) => {
             if (!config) return null;
             const { base, face, body, ears, acc } = config;
@@ -151,7 +176,7 @@
                 <ellipse cx="50" cy="105" rx="35" ry="12" fill="#e5e7eb" stroke="rgba(0,0,0,0.1)" strokeWidth="2" />
                 <path d="M15 105 L15 110 Q50 125 85 110 L85 105" fill="rgba(0,0,0,0.1)" />
 
-                {/* Ears */}
+                {/* Ears / Fins / Hair */}
                 {ears === 'round_black' && <g><circle cx="25" cy="35" r="18" fill="#111" /><circle cx="75" cy="35" r="18" fill="#111" /></g>}
                 {ears === 'round_yellow' && <g><circle cx="30" cy="35" r="10" fill={base} /><circle cx="70" cy="35" r="10" fill={base} /></g>}
                 {ears === 'long_black' && <g><ellipse cx="30" cy="50" rx="8" ry="25" fill="#111" transform="rotate(-20 30 50)" /><ellipse cx="70" cy="50" rx="8" ry="25" fill="#111" transform="rotate(20 70 50)" /></g>}
@@ -166,6 +191,11 @@
                 {ears === 'fin_small' && <g><path d="M10 60 L30 50 L30 70 Z" fill={body}/></g>}
                 {ears === 'fin_blue' && <g><path d="M10 50 L30 40 L30 70 Z" fill={body}/></g>}
                 {ears === 'twig_hair' && <g><path d="M50 20 L50 35 M45 25 L50 35 M55 25 L50 35" stroke="#8b4513" strokeWidth="2"/></g>}
+                {ears === 'nemo_fins' && <g>
+                    <path d="M45 40 Q50 15 55 40" fill={base} />
+                    <path d="M78 60 Q95 50 78 80" fill={base} />
+                    <path d="M22 60 Q5 55 22 70" fill={base} />
+                </g>}
                 
                 {/* Body & Head */}
                 <path d="M30 80 Q50 105 70 80 L70 100 Q50 115 30 100 Z" fill={body} />
@@ -186,6 +216,11 @@
                 {acc === 'crown_ice' && <path d="M35 35 L42 20 L50 30 L58 20 L65 35" fill="none" stroke="#38bdf8" strokeWidth="2" />}
                 {acc === 'teeth' && <path d="M40 70 Q50 75 60 70" fill="none" stroke="#1e3a8a" strokeWidth="2" />}
                 {acc === 'carrot_nose' && <polygon points="50,60 50,65 70,68" fill="#f97316" />}
+                {acc === 'nemo_stripes' && <g>
+                    <path d="M42 35 Q50 32 58 35 V85 Q50 88 42 85 Z" fill="white" opacity="0.9" />
+                    <path d="M30 88 Q50 98 70 88 L70 95 Q50 105 30 95 Z" fill="white" />
+                </g>}
+                {acc === 'yellow_tail' && <path d="M45 85 L55 85 L50 100 Z" fill="#FACC15" />}
                 
                 {/* Standard Eyes (fallback) */}
                 {!['three_eyes', 'one_eye', 'baymax_eyes'].includes(acc) && <g><circle cx="40" cy="55" r="3" fill="#111" /><circle cx="60" cy="55" r="3" fill="#111" /></g>}
@@ -193,28 +228,164 @@
             );
         };
 
-        // ==========================================
-        //  SVG Icons
-        // ==========================================
-        const SvgIcon = ({ path, size=24, className="", fill="none", stroke="currentColor" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {path}
-            </svg>
-        );
+        // 每日語錄組件 (新增隨機邏輯)
+        const DailyQuote = () => {
+            const QUOTES = [
+                "「只要你相信，夢想就會成真。」",
+                "「逆境中綻放的花朵，是最珍貴美麗的。」",
+                "「有些事必須要變，這樣新的事物才能綻放。」",
+                "「記住你是誰。」",
+                "「Hakuna Matata，意思是別擔心。」",
+                "「有些人值得你為他融化。」",
+                "「Ohana 就是家人，沒人會被遺忘。」",
+                "「奇蹟也需要一點時間。」",
+                "「當你向星星許願，夢想就會回應你。」",
+                "「冒險就在前方！」",
+                "「真正的英雄取決於心的力量。」",
+                "「有時候正確的路，不是最好走的路。」",
+                "「笑聲是永恆的，夢想是永存的。」",
+                "「如果你能夢想，你就能做到。」",
+                "「愛就是把別人的需求放在自己之上。」",
+                "「今天的特別時刻，是明天的美好回憶。」",
+                "「去生活，去夢想，去探索。」",
+                "「即使是微小的光芒，也能照亮黑暗。」",
+                "「勇敢去做，不要回頭。」",
+                "「你的命運就在你手中，你只需要足夠勇敢去看到它。」"
+            ];
 
-        const IconPaths = {
-            Heart: <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />,
-            Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />,
-            Star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
-            X: <path d="M18 6 6 18M6 6l12 12" />,
-            Gift: <g><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.9 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></g>,
-            LayoutGrid: <g><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></g>,
-            Plus: <path d="M5 12h14M12 5v14" />,
-            Calendar: <g><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></g>,
-            Search: <g><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></g>,
-            Download: <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></g>,
-            Sparkles: <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />,
-            Trophy: <g><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></g>
+            // 根據日期挑選語錄 (每天固定一句，但每天都會變)
+            const todayStr = new Date().toDateString();
+            let hash = 0;
+            for (let i = 0; i < todayStr.length; i++) {
+                hash = todayStr.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const quoteIndex = Math.abs(hash) % QUOTES.length;
+            const quote = QUOTES[quoteIndex];
+
+            return (
+                <div className="mx-4 mt-4 p-5 bg-[#FFFBEB] rounded-[24px] border-2 border-[#FCD34D] shadow-sm flex items-start gap-3">
+                    <div className="bg-[#F59E0B] p-2 rounded-xl text-white"><SvgIcon path={IconPaths.Star} size={20} fill="currentColor" /></div>
+                    <div>
+                        <p className="text-xs font-bold text-[#D97706] mb-1">今日魔法小語</p>
+                        <h3 className="text-[15px] font-bold text-[#78350F]">{quote}</h3>
+                    </div>
+                </div>
+            );
+        };
+
+        const DailyCardModal = ({ item, summary, onClose }) => {
+            if (!item) return null;
+            const itemData = CHAR_DATA.find(i => i.id === item) || CHAR_DATA[0];
+            const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            const rarityColors = {
+                'UR': 'bg-gradient-to-tr from-purple-500 to-indigo-500',
+                'SSR': 'bg-gradient-to-tr from-yellow-400 to-orange-500',
+                'SR': 'bg-gradient-to-tr from-blue-400 to-cyan-500',
+                'R': 'bg-gradient-to-tr from-green-400 to-emerald-500',
+            };
+            const rarityBg = rarityColors[itemData.rarity] || rarityColors['R'];
+
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+                    <div className="bg-[#FFFBF0] w-full max-w-sm rounded-[32px] overflow-hidden relative z-10 animate-in zoom-in-95 duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-4 border-white ring-4 ring-[#FDE68A]">
+                        <div className={`h-72 relative flex items-center justify-center p-6 shrink-0 bg-[#FFF7ED] overflow-hidden`}>
+                             <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(#F59E0B 2px, transparent 2px)', backgroundSize: '20px 20px'}}></div>
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-white/60 to-transparent pointer-events-none"></div>
+                             <div className="w-56 h-56 drop-shadow-2xl animate-in zoom-in duration-700 delay-150 relative z-10 transform hover:scale-105 transition-transform duration-300">
+                                <UniversalToy config={itemData} />
+                             </div>
+                             <div className="absolute top-4 right-4">
+                                <span className={`px-3 py-1 rounded-full text-xs font-black italic shadow-lg text-white ${rarityBg} border-2 border-white`}>
+                                    {itemData.rarity}
+                                </span>
+                             </div>
+                        </div>
+                        <div className="p-6 flex-1 overflow-y-auto bg-white relative rounded-t-[32px] -mt-6 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                             <div className="text-center mb-6">
+                                 <div className="inline-block px-3 py-1 bg-[#FEF3C7] text-[#D97706] text-[10px] font-bold rounded-full mb-2">NEW FRIEND!</div>
+                                 <h2 className="text-2xl font-black text-[#78350F] mb-1">{itemData.name}</h2>
+                                 <p className="text-xs text-[#92400E] font-medium">{todayStr}</p>
+                             </div>
+                             <div className="bg-[#FFFBEB] p-5 rounded-2xl border border-[#FDE68A]">
+                                 <div className="flex items-start gap-2">
+                                    <SvgIcon path={IconPaths.Sparkles} size={16} className="text-[#F59E0B] shrink-0 mt-1" />
+                                    <p className="text-[#92400E] leading-relaxed font-bold text-justify text-sm">
+                                        {summary}
+                                    </p>
+                                 </div>
+                             </div>
+                        </div>
+                        <div className="p-4 bg-white border-t border-[#F3F4F6] grid grid-cols-2 gap-3 shrink-0">
+                             <button onClick={onClose} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#F3F4F6] text-[#6B7280] font-bold text-sm hover:bg-[#E5E7EB] transition-colors">
+                                 <SvgIcon path={IconPaths.Download} size={18} /> 保存
+                             </button>
+                             <button onClick={onClose} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#F59E0B] text-white font-bold text-sm hover:bg-[#D97706] transition-colors shadow-[0_4px_0_#B45309] active:shadow-none active:translate-y-1">
+                                 <SvgIcon path={IconPaths.Gift} size={18} /> 收入收藏櫃
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const WriteModal = ({ onClose, onSubmit, onSuccess }) => {
+            const [points, setPoints] = useState(['', '', '', '', '']);
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const filledCount = points.filter(p => p.trim()).length;
+
+            const handleSubmit = async () => {
+                if (filledCount === 0) return;
+                setIsSubmitting(true);
+                try {
+                    const rawPoints = points.filter(p => p.trim());
+                    const result = await onSubmit({ rawPoints });
+                    setPoints(['', '', '', '', '']); 
+                    if(result) {
+                        onClose();
+                        onSuccess(result);
+                    }
+                } catch(e) {
+                    console.error(e);
+                    const randomChar = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)].id;
+                    onClose();
+                    onSuccess({ summary: "網路訊號有點微弱，但你的心意傳達到了！", characterId: randomChar });
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+                    <div className="absolute inset-0 bg-[#78350F]/40 backdrop-blur-[2px] pointer-events-auto" onClick={!isSubmitting ? onClose : undefined}></div>
+                    <div className="bg-[#FFFBF0] w-full max-w-lg sm:rounded-[40px] rounded-t-[40px] p-6 pointer-events-auto relative h-[85vh] flex flex-col shadow-2xl">
+                        {isSubmitting && (
+                            <div className="absolute inset-0 z-20 bg-white/95 rounded-[inherit] flex flex-col items-center justify-center p-8 text-center">
+                                <div className="w-20 h-20 bg-[#FEF3C7] rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
+                                    <SvgIcon path={IconPaths.Star} size={40} className="text-[#F59E0B] fill-[#F59E0B]" />
+                                </div>
+                                <h3 className="text-xl font-black text-[#78350F] mb-2">正在尋找你的守護夥伴...</h3>
+                            </div>
+                        )}
+                        <button onClick={onClose} disabled={isSubmitting} className="absolute top-6 right-6 p-2 bg-[#F3F4F6] rounded-full z-10"><SvgIcon path={IconPaths.X} size={20} className="text-[#9CA3AF]" /></button>
+                        <div className="mb-6 mt-2 text-center">
+                            <h2 className="text-2xl font-black text-[#78350F]">今日的快樂碎片</h2>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+                            {points.map((p, i) => (
+                                <div key={i} className="relative">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#FDE68A] rounded-full flex items-center justify-center text-[#92400E] font-black text-sm border-2 border-[#FCD34D]">{i + 1}</div>
+                                    <input value={p} onChange={e => {const n=[...points]; n[i]=e.target.value; setPoints(n)}} disabled={isSubmitting} className="w-full pl-16 pr-4 py-4 bg-white rounded-2xl border-2 border-[#F3F4F6] focus:border-[#FCD34D] text-[#78350F] font-bold" placeholder="今天發生了什麼好事？" />
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={handleSubmit} disabled={filledCount===0 || isSubmitting} className="w-full bg-[#F59E0B] text-white py-4 rounded-2xl font-black text-lg shadow-[0_4px_0_#B45309] mt-4 flex items-center justify-center gap-2 mb-8 sm:mb-0">
+                            <SvgIcon path={IconPaths.Gift} size={20} /> {isSubmitting ? '魔法詠唱中...' : '完成日記'}
+                        </button>
+                    </div>
+                </div>
+            );
         };
 
         const App = () => {
@@ -244,7 +415,6 @@
                                 onSnapshot(q, (snapshot) => {
                                     const fetched = snapshot.docs.map(doc => {
                                         const d = doc.data();
-                                        // 處理 Timestamp 轉換
                                         const createdAt = d.createdAt?.toDate ? d.createdAt.toDate() : new Date(d.createdAt);
                                         return { id: doc.id, ...d, createdAt };
                                     });
@@ -271,7 +441,7 @@
                 if (GEMINI_API_KEY) {
                     try {
                         const response = await fetch(
-                            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`,
+                            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
                             {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -295,6 +465,11 @@
                         const data = await response.json();
                         let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
                         rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                        const jsonStart = rawText.indexOf('{');
+                        const jsonEnd = rawText.lastIndexOf('}');
+                        if (jsonStart !== -1 && jsonEnd !== -1) {
+                            rawText = rawText.substring(jsonStart, jsonEnd + 1);
+                        }
                         
                         const parsed = JSON.parse(rawText);
                         aiResult = {
@@ -335,14 +510,12 @@
                 return aiResult; 
             };
 
-            // 月曆計算邏輯
             const calendarData = useMemo(() => {
                 const year = currentDate.getFullYear();
-                const month = currentDate.getMonth(); // 0-11
+                const month = currentDate.getMonth(); 
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const firstDay = new Date(year, month, 1).getDay(); // 0(Sun) - 6(Sat)
+                const firstDay = new Date(year, month, 1).getDay(); 
                 
-                // 找出這個月有寫日記的日期
                 const activeDays = new Set();
                 entries.forEach(e => {
                     const d = new Date(e.createdAt);
@@ -426,7 +599,6 @@
                                 )}
                             </div>
                         ) : (
-                            // 真實月曆視圖 (已修復)
                             <div className="pt-6">
                                 <div className="bg-white rounded-[32px] p-6 shadow-sm border-2 border-[#F3F4F6] mb-6">
                                     <div className="flex justify-between items-center mb-6">
@@ -499,134 +671,16 @@
             );
         };
 
-        const WriteModal = ({ onClose, onSubmit, onSuccess }) => {
-            const [points, setPoints] = useState(['', '', '', '', '']);
-            const [isSubmitting, setIsSubmitting] = useState(false);
-            const filledCount = points.filter(p => p.trim()).length;
-
-            const handleSubmit = async () => {
-                if (filledCount === 0) return;
-                setIsSubmitting(true);
-                try {
-                    const rawPoints = points.filter(p => p.trim());
-                    const result = await onSubmit({ rawPoints });
-                    setPoints(['', '', '', '', '']); 
-                    if(result) {
-                        onClose();
-                        onSuccess(result);
-                    }
-                } catch(e) {
-                    console.error(e);
-                    // 錯誤處理：如果失敗，顯示一個隨機角色
-                    const randomChar = CHAR_DATA[Math.floor(Math.random() * CHAR_DATA.length)].id;
-                    onClose();
-                    onSuccess({ summary: "網路訊號有點微弱，但你的心意傳達到了！", characterId: randomChar });
-                } finally {
-                    setIsSubmitting(false);
-                }
-            };
-
-            return (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-                    <div className="absolute inset-0 bg-[#78350F]/40 backdrop-blur-[2px] pointer-events-auto" onClick={!isSubmitting ? onClose : undefined}></div>
-                    <div className="bg-[#FFFBF0] w-full max-w-lg sm:rounded-[40px] rounded-t-[40px] p-6 pointer-events-auto relative h-[85vh] flex flex-col shadow-2xl">
-                        {isSubmitting && (
-                            <div className="absolute inset-0 z-20 bg-white/95 rounded-[inherit] flex flex-col items-center justify-center p-8 text-center">
-                                <div className="w-20 h-20 bg-[#FEF3C7] rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
-                                    <SvgIcon path={IconPaths.Star} size={40} className="text-[#F59E0B] fill-[#F59E0B]" />
-                                </div>
-                                <h3 className="text-xl font-black text-[#78350F] mb-2">正在尋找你的守護夥伴...</h3>
-                            </div>
-                        )}
-                        <button onClick={onClose} disabled={isSubmitting} className="absolute top-6 right-6 p-2 bg-[#F3F4F6] rounded-full z-10"><SvgIcon path={IconPaths.X} size={20} className="text-[#9CA3AF]" /></button>
-                        <div className="mb-6 mt-2 text-center">
-                            <h2 className="text-2xl font-black text-[#78350F]">今日的快樂碎片</h2>
-                        </div>
-                        <div className="flex-1 overflow-y-auto space-y-3 pb-4">
-                            {points.map((p, i) => (
-                                <div key={i} className="relative">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#FDE68A] rounded-full flex items-center justify-center text-[#92400E] font-black text-sm border-2 border-[#FCD34D]">{i + 1}</div>
-                                    <input value={p} onChange={e => {const n=[...points]; n[i]=e.target.value; setPoints(n)}} disabled={isSubmitting} className="w-full pl-16 pr-4 py-4 bg-white rounded-2xl border-2 border-[#F3F4F6] focus:border-[#FCD34D] text-[#78350F] font-bold" placeholder="今天發生了什麼好事？" />
-                                </div>
-                            ))}
-                        </div>
-                        <button onClick={handleSubmit} disabled={filledCount===0 || isSubmitting} className="w-full bg-[#F59E0B] text-white py-4 rounded-2xl font-black text-lg shadow-[0_4px_0_#B45309] mt-4 flex items-center justify-center gap-2 mb-8 sm:mb-0">
-                            <SvgIcon path={IconPaths.Gift} size={20} /> {isSubmitting ? '魔法詠唱中...' : '完成日記'}
-                        </button>
-                    </div>
-                </div>
-            );
-        };
-
-        const DailyCardModal = ({ item, summary, onClose }) => {
-            if (!item) return null;
-            const itemData = CHAR_DATA.find(i => i.id === item) || CHAR_DATA[0];
-            const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
-
-            const rarityColors = {
-                'UR': 'bg-gradient-to-tr from-purple-500 to-indigo-500',
-                'SSR': 'bg-gradient-to-tr from-yellow-400 to-orange-500',
-                'SR': 'bg-gradient-to-tr from-blue-400 to-cyan-500',
-                'R': 'bg-gradient-to-tr from-green-400 to-emerald-500',
-            };
-            const rarityBg = rarityColors[itemData.rarity] || rarityColors['R'];
-
-            return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-                    <div className="bg-[#FFFBF0] w-full max-w-sm rounded-[32px] overflow-hidden relative z-10 animate-in zoom-in-95 duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-4 border-white ring-4 ring-[#FDE68A]">
-                        <div className={`h-72 relative flex items-center justify-center p-6 shrink-0 bg-[#FFF7ED] overflow-hidden`}>
-                             <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(#F59E0B 2px, transparent 2px)', backgroundSize: '20px 20px'}}></div>
-                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-white/60 to-transparent pointer-events-none"></div>
-                             <div className="w-56 h-56 drop-shadow-2xl animate-in zoom-in duration-700 delay-150 relative z-10 transform hover:scale-105 transition-transform duration-300">
-                                <UniversalToy config={itemData} />
-                             </div>
-                             <div className="absolute top-4 right-4">
-                                <span className={`px-3 py-1 rounded-full text-xs font-black italic shadow-lg text-white ${rarityBg} border-2 border-white`}>
-                                    {itemData.rarity}
-                                </span>
-                             </div>
-                        </div>
-                        <div className="p-6 flex-1 overflow-y-auto bg-white relative rounded-t-[32px] -mt-6 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-                             <div className="text-center mb-6">
-                                 <div className="inline-block px-3 py-1 bg-[#FEF3C7] text-[#D97706] text-[10px] font-bold rounded-full mb-2">NEW FRIEND!</div>
-                                 <h2 className="text-2xl font-black text-[#78350F] mb-1">{itemData.name}</h2>
-                                 <p className="text-xs text-[#92400E] font-medium">{todayStr}</p>
-                             </div>
-                             <div className="bg-[#FFFBEB] p-5 rounded-2xl border border-[#FDE68A]">
-                                 <div className="flex items-start gap-2">
-                                    <SvgIcon path={IconPaths.Sparkles} size={16} className="text-[#F59E0B] shrink-0 mt-1" />
-                                    <p className="text-[#92400E] leading-relaxed font-bold text-justify text-sm">
-                                        {summary}
-                                    </p>
-                                 </div>
-                             </div>
-                        </div>
-                        <div className="p-4 bg-white border-t border-[#F3F4F6] grid grid-cols-2 gap-3 shrink-0">
-                             <button onClick={onClose} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#F3F4F6] text-[#6B7280] font-bold text-sm hover:bg-[#E5E7EB] transition-colors">
-                                 <SvgIcon path={IconPaths.Download} size={18} /> 保存
-                             </button>
-                             <button onClick={onClose} className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#F59E0B] text-white font-bold text-sm hover:bg-[#D97706] transition-colors shadow-[0_4px_0_#B45309] active:shadow-none active:translate-y-1">
-                                 <SvgIcon path={IconPaths.Gift} size={18} /> 收入收藏櫃
-                             </button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const DailyQuote = () => (
-            <div className="mx-4 mt-4 p-5 bg-[#FFFBEB] rounded-[24px] border-2 border-[#FCD34D] shadow-sm flex items-start gap-3">
-                <div className="bg-[#F59E0B] p-2 rounded-xl text-white"><SvgIcon path={IconPaths.Star} size={20} fill="currentColor" /></div>
-                <div>
-                    <p className="text-xs font-bold text-[#D97706] mb-1">今日魔法小語</p>
-                    <h3 className="text-[15px] font-bold text-[#78350F]">「只要你相信，夢想就會成真。」</h3>
-                </div>
-            </div>
-        );
-
+        // 3. 啟動 React
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+        
+        // 移除載入畫面
+        setTimeout(() => {
+            const loader = document.getElementById('loading-screen');
+            if(loader) loader.style.opacity = 0;
+            setTimeout(() => { if(loader) loader.remove(); }, 500);
+        }, 1000);
     </script>
 </body>
 </html>
