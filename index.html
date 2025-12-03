@@ -36,12 +36,10 @@
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             const root = document.getElementById('root');
-            // 只在嚴重崩潰時顯示錯誤
             if (root && root.innerHTML === "") {
                 root.innerHTML = `<div style="padding: 20px; color: #78350F; text-align: center; margin-top: 50px;">
-                    <h3 style="font-size: 20px; font-weight: bold;">哎呀！魔法暫時失效了</h3>
-                    <p>請嘗試重新整理頁面</p>
-                    <p style="font-size: 12px; opacity: 0.7; margin-top: 10px;">${message}</p>
+                    <h3 style="font-size: 20px; font-weight: bold;">App 發生錯誤</h3>
+                    <p style="font-size: 12px; margin-top: 10px;">${message}</p>
                 </div>`;
             }
         };
@@ -51,20 +49,17 @@
         const { useState, useEffect, useMemo, useRef } = React;
         
         // ==========================================
-        //  設定區 (請在這裡填入 API Key)
+        //  1. 設定區 (API Key 已填入)
         // ==========================================
-        
-        // 👇👇👇 請將您的 API Key 貼在下方的引號中 👇👇👇
         const GEMINI_API_KEY = "AIzaSyAWPp2gG3JO952AJ1XRvgbAUuGm3x0ByGI"; 
-        // 範例： const GEMINI_API_KEY = "AIzaSyD......";
 
-        // Firebase Config (選填)
+        // Firebase Config (選填，若無則使用本地模式)
         const firebaseConfig = {
             // apiKey: "...",
         };
 
         // ==========================================
-        //  Firebase 初始化
+        //  2. 基礎設定與資料
         // ==========================================
         let db = null;
         let auth = null;
@@ -75,11 +70,9 @@
                     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
                     const { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
                     const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-                    
                     const app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
-                    
                     return { auth, db, signInAnonymously, onAuthStateChanged, collection, addDoc, query, onSnapshot, serverTimestamp };
                 } catch (e) {
                     console.warn("Firebase 模式啟動失敗，將使用本地模式", e);
@@ -89,9 +82,6 @@
             return null;
         };
 
-        // ==========================================
-        //  角色資料庫
-        // ==========================================
         const CHAR_DATA = [
             { id: 'mickey', name: '經典米奇', keywords: '快樂,開始,樂觀,領袖,經典', rarity: 'UR', base: '#000', face: '#fce7f3', body: '#ef4444', ears: 'round_black', acc: 'buttons' },
             { id: 'minnie', name: '甜心米妮', keywords: '愛情,甜蜜,打扮,約會,蝴蝶結', rarity: 'SSR', base: '#000', face: '#fce7f3', body: '#ec4899', ears: 'round_black', acc: 'bow_red' },
@@ -101,26 +91,21 @@
             { id: 'pluto', name: '布鲁托', keywords: '忠誠,寵物,陪伴,直覺,狗狗', rarity: 'R', base: '#fbbf24', face: '#fbbf24', body: '#fbbf24', ears: 'long_black', acc: 'collar_green' },
             { id: 'chip', name: '奇奇', keywords: '聰明,計畫,兄弟,忙碌,松鼠', rarity: 'R', base: '#78350f', face: '#fef3c7', body: '#78350f', ears: 'chip_ears', acc: 'nose_black' },
             { id: 'dale', name: '蒂蒂', keywords: '傻呼呼,玩樂,放鬆,惡作劇,松鼠', rarity: 'R', base: '#92400e', face: '#fef3c7', body: '#92400e', ears: 'chip_ears', acc: 'nose_red' },
-            
             { id: 'pooh', name: '維尼', keywords: '美食,蜂蜜,慵懶,友誼,黃色', rarity: 'SSR', base: '#fbbf24', face: '#fbbf24', body: '#ef4444', ears: 'round_yellow', acc: 'none' },
             { id: 'piglet', name: '小豬', keywords: '膽小,勇敢,微小,溫柔,粉紅', rarity: 'R', base: '#fbcfe8', face: '#fbcfe8', body: '#db2777', ears: 'pointy_pink', acc: 'stripes' },
             { id: 'tigger', name: '跳跳虎', keywords: '活力,跳躍,自信,獨一無二,橘色', rarity: 'SR', base: '#f97316', face: '#fef3c7', body: '#f97316', ears: 'round_orange', acc: 'stripes_black' },
             { id: 'eeyore', name: '屹耳', keywords: '憂鬱,接受,慢活,低潮,灰色', rarity: 'R', base: '#64748b', face: '#cbd5e1', body: '#64748b', ears: 'long_droopy', acc: 'bow_tail' },
-
             { id: 'stitch', name: '史迪奇', keywords: '家人,破壞,搞怪,外星人,藍色', rarity: 'UR', base: '#3b82f6', face: '#60a5fa', body: '#3b82f6', ears: 'stitch_ears', acc: 'teeth' },
             { id: 'angel', name: '安琪', keywords: '魅力,歌聲,粉紅,戀愛,女朋友', rarity: 'SR', base: '#ec4899', face: '#f9a8d4', body: '#ec4899', ears: 'stitch_ears_pink', acc: 'antenna' },
-            
             { id: 'woody', name: '胡迪', keywords: '責任,懷舊,領導,夥伴,牛仔', rarity: 'SSR', base: '#fef3c7', face: '#fef3c7', body: '#fbbf24', ears: 'none', acc: 'hat_cowboy' },
             { id: 'buzz', name: '巴斯光年', keywords: '無限,超越,飛翔,科技,太空', rarity: 'SSR', base: '#fff', face: '#fce7f3', body: '#fff', ears: 'none', acc: 'helmet' },
             { id: 'alien', name: '三眼怪', keywords: '團體,感激,驚喜,被選中,爪子', rarity: 'SR', base: '#84cc16', face: '#84cc16', body: '#3b82f6', ears: 'pointy_green', acc: 'three_eyes' },
             { id: 'lotso', name: '熊抱哥', keywords: '草莓,擁抱,過去,複雜,粉紅熊', rarity: 'SSR', base: '#9d174d', face: '#fce7f3', body: '#be185d', ears: 'round_dark_pink', acc: 'cane' },
             { id: 'hamm', name: '火腿豬', keywords: '存錢,現實,聰明,吐槽,小豬撲滿', rarity: 'R', base: '#fca5a5', face: '#fca5a5', body: '#fca5a5', ears: 'pointy_pink', acc: 'coin_slot' },
             { id: 'rex', name: '抱抱龍', keywords: '焦慮,遊戲,恐龍,善良,綠色', rarity: 'R', base: '#22c55e', face: '#22c55e', body: '#22c55e', ears: 'none', acc: 'teeth' },
-
             { id: 'sulley', name: '毛怪', keywords: '強壯,溫柔,保護,毛茸茸,藍色', rarity: 'SR', base: '#3b82f6', face: '#3b82f6', body: '#3b82f6', ears: 'horns', acc: 'spots_purple' },
             { id: 'mike', name: '大眼仔', keywords: '樂觀,學習,觀察,目標,眼睛', rarity: 'SR', base: '#84cc16', face: '#84cc16', body: '#84cc16', ears: 'horns', acc: 'one_eye' },
             { id: 'boo', name: '阿布', keywords: '純真,不怕,捉迷藏,可愛,小女孩', rarity: 'R', base: '#fce7f3', face: '#fce7f3', body: '#ec4899', ears: 'pigtails', acc: 'monster_costume' },
-
             { id: 'elsa', name: '艾莎', keywords: '釋放,冰雪,獨立,女王,藍色', rarity: 'UR', base: '#e0f2fe', face: '#fce7f3', body: '#38bdf8', ears: 'braid_white', acc: 'crown_ice' },
             { id: 'anna', name: '安娜', keywords: '熱情,活潑,姊妹,冒險,紫色', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#0ea5e9', ears: 'braids_brown', acc: 'cape_purple' },
             { id: 'ariel', name: '愛麗兒', keywords: '好奇,歌聲,海洋,新世界,人魚', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#22c55e', ears: 'hair_red_long', acc: 'flower' },
@@ -129,7 +114,6 @@
             { id: 'rapunzel', name: '樂佩', keywords: '畫畫,光芒,長髮,探索,紫色', rarity: 'SSR', base: '#fce7f3', face: '#fce7f3', body: '#d8b4fe', ears: 'hair_long_gold', acc: 'flowers_hair' },
             { id: 'cinderella', name: '仙度瑞拉', keywords: '時間,南瓜,玻璃鞋,變身,藍色', rarity: 'SR', base: '#fce7f3', face: '#fce7f3', body: '#60a5fa', ears: 'hair_blonde_bun', acc: 'headband_blue' },
             { id: 'snowwhite', name: '白雪公主', keywords: '蘋果,動物,許願,善良,黑髮', rarity: 'SR', base: '#fce7f3', face: '#fce7f3', body: '#fbbf24', ears: 'hair_black_bob', acc: 'bow_red_head' },
-
             { id: 'baymax', name: '杯麵', keywords: '健康,療癒,照顧,擁抱,白色', rarity: 'SSR', base: '#fff', face: '#fff', body: '#fff', ears: 'none', acc: 'baymax_eyes' },
             { id: 'simba', name: '辛巴', keywords: '成長,責任,王者,草原,獅子', rarity: 'SSR', base: '#fbbf24', face: '#fbbf24', body: '#fbbf24', ears: 'round_lion', acc: 'mane_red' },
             { id: 'nemo', name: '尼莫', keywords: '大海,幸運,冒險,游泳,小丑魚', rarity: 'R', base: '#f97316', face: '#f97316', body: '#f97316', ears: 'nemo_fins', acc: 'nemo_stripes' },
@@ -141,7 +125,7 @@
         ];
 
         // ==========================================
-        //  3. 元件定義 (先定義，後使用)
+        //  3. 元件定義
         // ==========================================
         
         // SVG 圖示路徑
@@ -228,7 +212,7 @@
             );
         };
 
-        // 每日語錄組件 (新增隨機邏輯)
+        // 每日語錄組件 (隨機邏輯)
         const DailyQuote = () => {
             const QUOTES = [
                 "「只要你相信，夢想就會成真。」",
@@ -253,7 +237,6 @@
                 "「你的命運就在你手中，你只需要足夠勇敢去看到它。」"
             ];
 
-            // 根據日期挑選語錄 (每天固定一句，但每天都會變)
             const todayStr = new Date().toDateString();
             let hash = 0;
             for (let i = 0; i < todayStr.length; i++) {
@@ -461,10 +444,15 @@
                             }
                         );
                         
-                        if (!response.ok) throw new Error("API Error");
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(`API Error ${response.status}: ${errorData.error?.message || response.statusText}`);
+                        }
+                        
                         const data = await response.json();
                         let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
                         rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                        
                         const jsonStart = rawText.indexOf('{');
                         const jsonEnd = rawText.lastIndexOf('}');
                         if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -479,7 +467,7 @@
 
                     } catch (e) {
                         console.error("AI Error", e);
-                        aiResult = { summary: "雖然魔法訊號微弱，但你的快樂我們收到了！", characterId: getRandomChar() };
+                        throw e; // 丟出錯誤讓 WriteModal 處理
                     }
                 } else {
                     aiResult = { summary: "記得填入 API Key 才能啟動完整的魔法喔！", characterId: getRandomChar() };
@@ -510,6 +498,7 @@
                 return aiResult; 
             };
 
+            // 月曆計算邏輯
             const calendarData = useMemo(() => {
                 const year = currentDate.getFullYear();
                 const month = currentDate.getMonth(); 
